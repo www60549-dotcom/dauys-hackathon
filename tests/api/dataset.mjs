@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 
 const base=process.env.BASE_URL||'http://localhost:5173';
 const source=JSON.parse(await readFile(new URL('./dataset-source.json',import.meta.url),'utf8'));
-const seed=JSON.parse(await readFile(new URL('../backend/cmd/server/seed.json',import.meta.url),'utf8'));
+const seed=JSON.parse(await readFile(new URL('../../backend/cmd/server/seed.json',import.meta.url),'utf8'));
 let checks=0;
 function check(value,label){assert.ok(value,label);checks++;console.log('PASS',label)}
 async function request(path,{method='GET',body,cookie,status=200}={}){

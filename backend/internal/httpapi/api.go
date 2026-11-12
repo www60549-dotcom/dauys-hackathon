@@ -52,7 +52,7 @@ func (a *API) App() *fiber.App {
 			origin := c.Get("Origin")
 			allowed := os.Getenv("APP_ORIGINS")
 			if allowed == "" {
-				allowed = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
+				allowed = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5175,http://127.0.0.1:5175,http://localhost:3000,http://127.0.0.1:3000"
 			}
 			valid := origin == ""
 			for _, o := range strings.Split(allowed, ",") {
@@ -145,12 +145,12 @@ func (a *API) meta(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(fiber.Map{"categories": cats, "executors": users})
+	return c.JSON(fiber.Map{"categories": cats, "executors": users, "departments": []string{"Закупки", "Проектирование", "Монтаж и сервис", "Бухгалтерия", "Продажи", "IT", "Офис"}})
 }
 func (a *API) list(c *fiber.Ctx) error {
 	ctx, cancel := service.Context()
 	defer cancel()
-	f := service.Filter{Q: c.Query("q"), Status: c.Query("status"), Category: c.Query("category"), Department: c.Query("department"), Mine: c.Query("mine"), Sort: c.Query("sort"), Page: c.QueryInt("page", 1), Overdue: c.Query("overdue") == "true", Month: c.Query("month"), Kind: c.Query("kind"), DueFrom: c.Query("due_from"), DueTo: c.Query("due_to"), Unassigned: c.Query("unassigned") == "true", CreatedMonth: c.Query("created_month")}
+	f := service.Filter{Q: c.Query("q"), Status: c.Query("status"), Category: c.Query("category"), Department: c.Query("department"), Mine: c.Query("mine"), Sort: c.Query("sort"), Page: c.QueryInt("page", 1), Overdue: c.Query("overdue") == "true", Month: c.Query("month"), Kind: c.Query("kind"), DueFrom: c.Query("due_from"), DueTo: c.Query("due_to"), Unassigned: c.Query("unassigned") == "true", CreatedMonth: c.Query("created_month"), Assigned: c.Query("assigned") == "true"}
 	items, total, err := a.Svc.List(ctx, user(c), f)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidFilter) {
@@ -185,7 +185,7 @@ func (a *API) detail(c *fiber.Ctx) error {
 	if err != nil {
 		return fail(c, 404, "Обращение не найдено")
 	}
-	comments, err := a.maps(ctx, `SELECT c.id,c.body,c.created_at,u.name,u.role FROM comments c JOIN users u ON u.id=c.user_id WHERE c.appeal_id=$1 ORDER BY c.created_at`, id)
+	comments, err := a.maps(ctx, `SELECT c.id,c.body,c.created_at,u.name,u.role,c.user_id AS author_id FROM comments c JOIN users u ON u.id=c.user_id WHERE c.appeal_id=$1 ORDER BY c.created_at`, id)
 	if err != nil {
 		return err
 	}

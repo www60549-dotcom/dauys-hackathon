@@ -1,4 +1,4 @@
-export type View = 'space' | 'appeals' | 'improvements' | 'analytics' | 'help';
+export type View = 'space' | 'appeals' | 'improvements' | 'analytics' | 'help' | 'assigned' | 'admin';
 export type Status = 'new' | 'review' | 'progress' | 'waiting' | 'resolved' | 'closed' | 'rejected';
 export type Kind = 'problem' | 'idea' | 'praise';
 export type CategoryId = 'procurement' | 'it' | 'engineering' | 'installation' | 'processes';
@@ -17,9 +17,10 @@ export interface Comment {
 }
 
 export interface HistoryEntry {
-  status: Status;
+  status?: Status;
   createdAt: number;
   label?: string;
+  actor?: string;
 }
 
 export interface Appeal {
@@ -37,6 +38,11 @@ export interface Appeal {
   priority: string;
   author: string;
   assignee: string;
+  authorId?: string;
+  assigneeId?: string;
+  votes?: number;
+  voted?: boolean;
+  confirmed?: boolean;
   createdAt: number;
   updatedAt: number;
   dueAt: number;

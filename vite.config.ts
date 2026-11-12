@@ -6,6 +6,8 @@ import {fileURLToPath} from 'node:url';
 export default defineConfig({
   resolve: {alias: {'@': fileURLToPath(new URL('./src', import.meta.url))}},
   plugins: [react(), tailwind()],
+  server: {proxy: {'/api': {target: 'http://127.0.0.1:8080', changeOrigin: true}}},
+  preview: {proxy: {'/api': {target: 'http://127.0.0.1:8080', changeOrigin: true}}},
   build: {
     rollupOptions: {
       output: {

@@ -6,13 +6,15 @@ import {DEMO_EMPLOYEE} from '../lib/workspace';
 import {formatDate} from '../lib/utils';
 import type {Appeal, Kind, PointerRef} from '../types';
 
-export function EmployeeHome({activeAppeals, pointer, paused, onCreate, onOpen, onShowAll}: {
+export function EmployeeHome({user, activeAppeals, pointer, paused, onCreate, onOpen, onShowAll}: {
+  user?: {name: string; department: string};
   activeAppeals: Appeal[]; pointer: PointerRef; paused: boolean;
   onCreate: (kind: Kind) => void; onOpen: (id: string) => void; onShowAll: () => void;
 }) {
   const reduced = !!useReducedMotion();
+  const profile = user ? {...user, firstName: user.name.split(' ')[0]} : DEMO_EMPLOYEE;
   return <section className="employee-home" aria-labelledby="employee-home-title">
-    <div className="employee-welcome"><div><p className="employee-greeting">Привет, {DEMO_EMPLOYEE.firstName} <span>• {DEMO_EMPLOYEE.department}</span></p><h1 id="employee-home-title">Что сделаем лучше?</h1><p>Оставьте обращение — статус и ответ будут здесь.</p></div><DauysPlanet pointer={pointer} paused={paused} compact/></div>
+    <div className="employee-welcome"><div><p className="employee-greeting">Привет, {profile.firstName} <span>• {profile.department}</span></p><h1 id="employee-home-title">Что сделаем лучше?</h1><p>Оставьте обращение — статус и ответ будут здесь.</p></div><DauysPlanet pointer={pointer} paused={paused} compact/></div>
     <div className="home-action-grid">{[
       {kind: 'problem' as const, title: 'Сообщить о проблеме', description: 'Что-то мешает работе или сломалось', icon: AlertTriangle},
       {kind: 'idea' as const, title: 'Предложить улучшение', description: 'Есть идея, как сделать процесс быстрее', icon: Lightbulb},

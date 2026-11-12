@@ -19,6 +19,7 @@ export function appealStatusAt(appeal: Appeal, at: number): Status | null {
   let latestTime = Number.NEGATIVE_INFINITY;
   let status: Status = 'new';
   for (const entry of appeal.history) {
+    if (!entry.status) continue;
     if (entry.createdAt >= appeal.createdAt && entry.createdAt <= at && entry.createdAt >= latestTime) {
       latestTime = entry.createdAt;
       status = entry.status;

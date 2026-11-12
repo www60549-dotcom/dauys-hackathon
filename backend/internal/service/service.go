@@ -91,9 +91,10 @@ type Filter struct {
 	Page                                               int
 	Overdue                                            bool
 	Unassigned                                         bool
+	Assigned                                           bool
 }
 
-const filterWhere = ` WHERE ($2='' OR a.title ILIKE '%'||$2||'%' OR a.description ILIKE '%'||$2||'%' OR a.id ILIKE '%'||$2||'%') AND ($3='' OR a.status=$3 OR ($3='resolved' AND a.status='closed') OR ($3='done' AND a.status IN ('resolved','closed') AND a.kind<>'praise')) AND ($4='' OR a.category=$4) AND ($5='' OR a.department=$5) AND ($6<>'true' OR a.author_id=$1) AND (NOT $7 OR (a.due_at<now() AND a.status NOT IN ('closed','resolved','rejected'))) AND ($8='' OR to_char(a.updated_at,'YYYY-MM')=$8) AND ($9='' OR a.kind=$9) AND ($10='' OR a.due_at>=(nullif($10,'')::date::timestamp AT TIME ZONE 'Asia/Qyzylorda')) AND ($11='' OR a.due_at<((nullif($11,'')::date+1)::timestamp AT TIME ZONE 'Asia/Qyzylorda')) AND (NOT $12 OR a.assignee_id IS NULL) AND ($13='' OR (a.created_at>=(nullif($13,'')||'-01')::date::timestamp AT TIME ZONE 'UTC' AND a.created_at<((nullif($13,'')||'-01')::date+interval '1 month')::timestamp AT TIME ZONE 'UTC'))`
+const filterWhere = ` WHERE ($2='' OR a.title ILIKE '%'||$2||'%' OR a.description ILIKE '%'||$2||'%' OR a.id ILIKE '%'||$2||'%') AND ($3='' OR a.status=$3 OR ($3='resolved' AND a.status='closed') OR ($3='active' AND a.status NOT IN ('closed','rejected')) OR ($3='done' AND a.status IN ('resolved','closed') AND a.kind<>'praise')) AND ($4='' OR a.category=$4) AND ($5='' OR a.department=$5) AND ($6<>'true' OR a.author_id=$1) AND (NOT $7 OR (a.due_at<now() AND a.status NOT IN ('closed','resolved','rejected'))) AND ($8='' OR to_char(a.updated_at,'YYYY-MM')=$8) AND ($9='' OR a.kind=$9) AND ($10='' OR a.due_at>=(nullif($10,'')::date::timestamp AT TIME ZONE 'Asia/Qyzylorda')) AND ($11='' OR a.due_at<((nullif($11,'')::date+1)::timestamp AT TIME ZONE 'Asia/Qyzylorda')) AND (NOT $12 OR a.assignee_id IS NULL) AND ($13='' OR (a.created_at>=(nullif($13,'')||'-01')::date::timestamp AT TIME ZONE 'UTC' AND a.created_at<((nullif($13,'')||'-01')::date+interval '1 month')::timestamp AT TIME ZONE 'UTC')) AND (NOT $14 OR a.assignee_id=$1)`
 
 var ErrInvalidFilter = errors.New("Некорректный фильтр")
 
@@ -118,7 +119,7 @@ func filterArgs(u User, f Filter) ([]any, error) {
 	if f.DueFrom != "" && f.DueTo != "" && f.DueFrom > f.DueTo {
 		return nil, fmt.Errorf("%w: начало периода срока должно быть не позже окончания", ErrInvalidFilter)
 	}
-	return []any{u.ID, f.Q, f.Status, f.Category, f.Department, f.Mine, f.Overdue, f.Month, f.Kind, f.DueFrom, f.DueTo, f.Unassigned, f.CreatedMonth}, nil
+	return []any{u.ID, f.Q, f.Status, f.Category, f.Department, f.Mine, f.Overdue, f.Month, f.Kind, f.DueFrom, f.DueTo, f.Unassigned, f.CreatedMonth, f.Assigned}, nil
 }
 
 func (s *Service) Counts(ctx context.Context, u User, f Filter) (map[string]int, error) {
@@ -127,9 +128,9 @@ func (s *Service) Counts(ctx context.Context, u User, f Filter) (map[string]int,
 	if err != nil {
 		return nil, err
 	}
-	var total, progress, waiting, resolved int
-	err = s.Pool.QueryRow(ctx, `SELECT count(*)::int,count(*) FILTER(WHERE status='progress')::int,count(*) FILTER(WHERE status='waiting')::int,count(*) FILTER(WHERE status IN ('resolved','closed'))::int`+joins+filterWhere, args...).Scan(&total, &progress, &waiting, &resolved)
-	return map[string]int{"total": total, "progress": progress, "waiting": waiting, "resolved": resolved}, err
+	var total, progress, waiting, resolved, active int
+	err = s.Pool.QueryRow(ctx, `SELECT count(*)::int,count(*) FILTER(WHERE status='progress')::int,count(*) FILTER(WHERE status='waiting')::int,count(*) FILTER(WHERE status IN ('resolved','closed'))::int,count(*) FILTER(WHERE status NOT IN ('closed','rejected'))::int`+joins+filterWhere, args...).Scan(&total, &progress, &waiting, &resolved, &active)
+	return map[string]int{"total": total, "active": active, "progress": progress, "waiting": waiting, "resolved": resolved}, err
 }
 
 func (s *Service) List(ctx context.Context, u User, f Filter) ([]Appeal, int, error) {
@@ -145,13 +146,15 @@ func (s *Service) List(ctx context.Context, u User, f Filter) ([]Appeal, int, er
 		return nil, 0, err
 	}
 	order := `a.created_at DESC,a.id`
-	if f.Sort == "votes" {
+	if f.Sort == "updated" {
+		order = `a.updated_at DESC,a.created_at DESC,a.id`
+	} else if f.Sort == "votes" {
 		order = `23 DESC,a.created_at DESC`
 	} else if f.Sort == "priority" {
 		order = `CASE WHEN a.status IN ('closed','resolved','rejected') THEN 0 ELSE CASE a.priority WHEN 'critical' THEN 1000 WHEN 'high' THEN 35 ELSE 0 END+a.affected*3+EXTRACT(EPOCH FROM (now()-a.created_at))/43200+(SELECT count(*)*25 FROM appeal_recurrences r WHERE r.appeal_id=a.id) END DESC`
 	}
 	args = append(args, 30, (f.Page-1)*30)
-	rows, err := s.Pool.Query(ctx, `SELECT `+cols+joins+filterWhere+` ORDER BY `+order+` LIMIT $14 OFFSET $15`, args...)
+	rows, err := s.Pool.Query(ctx, `SELECT `+cols+joins+filterWhere+` ORDER BY `+order+` LIMIT $15 OFFSET $16`, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -172,7 +175,7 @@ func (s *Service) Create(ctx context.Context, u User, a Appeal) (string, error) 
 	if len([]rune(a.Title)) < 5 || len([]rune(a.Title)) > 180 || len([]rune(a.Description)) < 10 || len(a.Description) > 20000 || len(a.Solution) > 10000 {
 		return "", errors.New("Укажите заголовок (5–180 символов) и описание (от 10 символов)")
 	}
-	if !oneOf(a.Kind, "problem", "idea", "praise") || !oneOf(a.Priority, "low", "medium", "high", "critical") || !oneOf(a.Department, "Закупки", "Проектирование", "Бухгалтерия", "Продажи", "IT", "Офис") {
+	if !oneOf(a.Kind, "problem", "idea", "praise") || !oneOf(a.Priority, "low", "medium", "high", "critical") || !oneOf(a.Department, "Закупки", "Проектирование", "Бухгалтерия", "Продажи", "IT", "Офис", "Монтаж и сервис") {
 		return "", errors.New("Проверьте тип, приоритет и подразделение")
 	}
 	if a.Affected < 1 || a.Affected > 100000 || a.ExpectedEffect < 0 || a.ExpectedEffect > 1000000000 {

@@ -5,14 +5,17 @@ import {Brand} from './Brand';
 import {NavigationTabs} from './NavigationTabs';
 import {DEMO_EMPLOYEE} from '../lib/workspace';
 import type {View, Notification} from '../types';
+import type {SessionUser} from '../api/contracts';
 
 interface Props {
+  user?: SessionUser;
   view: View; onNavigate: (view: View) => void; onOpen: (id: string) => void;
   notifications: Notification[]; onReadAll: () => void; activeCount: number;
   onQR: () => void; onSettings: () => void; onLogout: () => void;
 }
 
-export function Header({view, onNavigate, onOpen, notifications, onReadAll, activeCount, onQR, onSettings, onLogout}: Props) {
+export function Header({user, view, onNavigate, onOpen, notifications, onReadAll, activeCount, onQR, onSettings, onLogout}: Props) {
+  const profile = user ? {...user, initials: user.name.split(' ').filter(Boolean).slice(0, 2).map(word => word[0]).join('')} : DEMO_EMPLOYEE;
   const [popover, setPopover] = useState<'notifications' | 'profile' | null>(null);
   const container = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
@@ -37,16 +40,18 @@ export function Header({view, onNavigate, onOpen, notifications, onReadAll, acti
     {id: 'space', label: 'Главная'}, {id: 'appeals', label: 'Мои обращения', count: activeCount},
     {id: 'improvements', label: 'Улучшения'}, {id: 'analytics', label: 'Аналитика и итоги'}, {id: 'help', label: 'Помощь'},
   ];
+  if (user && user.role !== 'employee') tabs.splice(2, 0, {id: 'assigned', label: 'В работе у меня'});
+  if (user?.role === 'admin') tabs.push({id: 'admin', label: 'Настройки системы'});
   const menuAction = (action: () => void) => {setPopover(null); action();};
   return <header className="site-header employee-header">
     <button className="brand-button" aria-label="Dauys — главная" onClick={() => {setPopover(null); onNavigate('space');}}><Brand/></button>
     <NavigationTabs id="workspace" tabs={tabs} value={view} label="Разделы рабочего пространства" onChange={next => {setPopover(null); onNavigate(next);}} className="workspace-tabs"/>
     <div className="header-actions" ref={container}>
       <button className="icon-button bell-button" aria-label="Уведомления" aria-expanded={popover === 'notifications'} onClick={event => {trigger.current = event.currentTarget; setPopover(value => value === 'notifications' ? null : 'notifications');}}><motion.span animate={bell}><Bell size={22} strokeWidth={1.6}/></motion.span>{!read && <span className="notification-dot"/>}</button>
-      <button className="avatar" aria-label={`Профиль: ${DEMO_EMPLOYEE.name}`} aria-expanded={popover === 'profile'} onClick={event => {trigger.current = event.currentTarget; setPopover(value => value === 'profile' ? null : 'profile');}}>{DEMO_EMPLOYEE.initials}</button>
+      <button className="avatar" aria-label={`Профиль: ${profile.name}`} aria-expanded={popover === 'profile'} onClick={event => {trigger.current = event.currentTarget; setPopover(value => value === 'profile' ? null : 'profile');}}>{profile.initials}</button>
       <AnimatePresence>{popover && <motion.aside className="header-popover workspace-popover" key={popover} initial={{opacity: 0, y: -5}} animate={{opacity: 1, y: 0}} exit={{opacity: 0}} transition={{duration: reduced ? 0 : 0.15}} aria-label={popover === 'profile' ? 'Профиль сотрудника' : 'Уведомления'}>
-        <div className="popover-heading"><h3>{popover === 'profile' ? DEMO_EMPLOYEE.name : 'Уведомления'}</h3><button className="icon-button small" aria-label="Закрыть меню" onClick={() => {setPopover(null); trigger.current?.focus();}}><X size={17}/></button></div>
-        {popover === 'profile' ? <><p className="profile-department">{DEMO_EMPLOYEE.department}</p><div className="profile-actions"><button onClick={() => menuAction(onQR)}><QrCode size={18}/>QR-код для телефона</button><button onClick={() => menuAction(onSettings)}><Settings size={18}/>Настройки</button><button onClick={() => menuAction(onLogout)}><LogOut size={18}/>Выход</button></div></>
+        <div className="popover-heading"><h3>{popover === 'profile' ? profile.name : 'Уведомления'}</h3><button className="icon-button small" aria-label="Закрыть меню" onClick={() => {setPopover(null); trigger.current?.focus();}}><X size={17}/></button></div>
+        {popover === 'profile' ? <><p className="profile-department">{profile.department}</p><div className="profile-actions"><button onClick={() => menuAction(onQR)}><QrCode size={18}/>QR-код для телефона</button><button onClick={() => menuAction(onSettings)}><Settings size={18}/>Настройки</button><button onClick={() => menuAction(onLogout)}><LogOut size={18}/>Выход</button></div></>
           : <><div className="notice-list">{notifications.slice(0, 12).map(item => <button className="notice-item" key={item.id} onClick={() => menuAction(() => onOpen(item.appealId))}><span><strong>{item.appealId}</strong><small>{item.body}</small></span><ArrowUpRight size={16}/></button>)}{!notifications.length && <p className="profile-department">Новых событий пока нет.</p>}</div><button className="text-button" onClick={onReadAll}><CheckCheck size={16}/>{read ? 'Всё прочитано' : 'Отметить прочитанными'}</button></>}
       </motion.aside>}</AnimatePresence>
     </div>

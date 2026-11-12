@@ -20,7 +20,7 @@ export function Dialog({open, title, eyebrow, children, className, onClose}: {op
     document.body.style.overflow = 'hidden';
     return () => { openDialogs = Math.max(0, openDialogs - 1); if (!openDialogs) document.body.style.overflow = savedOverflow; };
   }, [open]);
-  return <dialog ref={ref} className={cn('modal', className)} aria-labelledby={titleId} onCancel={onClose} onClick={event => {
+  return <dialog ref={ref} className={cn('modal', className)} aria-labelledby={titleId} onCancel={event => {event.preventDefault(); onClose();}} onClick={event => {
     if (event.target !== event.currentTarget) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) onClose();
