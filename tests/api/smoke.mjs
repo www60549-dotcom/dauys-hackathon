@@ -3,7 +3,14 @@ import {performance} from 'node:perf_hooks';
 const base=process.env.BASE_URL||'http://localhost:5173';
 let checks=0;
 function ok(value,label){assert.ok(value,label);checks++;console.log('PASS',label)}
-async function request(path,{method='GET',body,cookie,expected=200,origin}={}){const headers={};if(cookie)headers.Cookie=cookie;if(origin)headers.Origin=origin;if(body&&!(body instanceof FormData))headers['Content-Type']='application/json';const r=await fetch(base+'/api'+path,{method,headers,body:body instanceof FormData?body:body?JSON.stringify(body):undefined});const raw=await r.text();let data;try{data=JSON.parse(raw)}catch{data=raw}assert.equal(r.status,expected,`${method} ${path}: ${raw}`);return {r,data}}
+async function versionedBody(path,body,cookie,method){
+ if(body && ((method==='PATCH' && /^\/appeals\/[^/?]+$/.test(path)) || (method==='POST' && /^\/appeals\/[^/?]+\/reopen$/.test(path)))){
+  const current=await fetch(base+'/api'+path.replace(/\/reopen$/,''),{headers:cookie?{Cookie:cookie}:{}});
+  if(current.ok) body={...body,expected_version:(await current.json()).appeal.version};
+ }
+ return body;
+}
+async function request(path,{method='GET',body,cookie,expected=200,origin}={}){body=await versionedBody(path,body,cookie,method);const headers={};if(cookie)headers.Cookie=cookie;if(origin)headers.Origin=origin;if(body&&!(body instanceof FormData))headers['Content-Type']='application/json';const r=await fetch(base+'/api'+path,{method,headers,body:body instanceof FormData?body:body?JSON.stringify(body):undefined});const raw=await r.text();let data;try{data=JSON.parse(raw)}catch{data=raw}assert.equal(r.status,expected,`${method} ${path}: ${raw}`);return {r,data}}
 async function login(role){const {r}=await request('/login',{method:'POST',body:{email:role+'@dauys.local',password:'DauysDemo2026!'}});const cookie=r.headers.get('set-cookie');ok(cookie?.includes('HttpOnly')&&cookie.includes('SameSite=Lax'),'server session '+role);return cookie.split(';')[0]}
 await request('/me',{expected:401});ok(true,'unauthenticated access denied');
 await request('/login',{method:'POST',body:{email:'employee@dauys.local',password:'incorrect'},expected:401});
@@ -26,11 +33,11 @@ await request(path+'/comments',{method:'POST',cookie:executor,body:{body:'Уто
 const before=await request('/analytics',{cookie:employee});
 await request(path,{method:'PATCH',cookie:executor,body:{...detail.appeal,status:'resolved',result:'Изменение внедрено и проверено в полном демонстрационном сценарии.',actual_effect:25000}});
 const unconfirmed=await request('/analytics',{cookie:employee});ok(unconfirmed.data.summary.confirmed_effect===before.data.summary.confirmed_effect,'unconfirmed savings excluded from confirmed total');
-await request(path,{method:'PATCH',cookie:executor,body:{...detail.appeal,status:'closed'},expected:400});
+await request(path,{method:'PATCH',cookie:executor,body:{...detail.appeal,status:'closed'},expected:409});
 await request(path,{method:'PATCH',cookie:employee,body:{status:'closed'}});({data:detail}=await request(path,{cookie:employee}));ok(detail.appeal.confirmed&&detail.appeal.status==='closed','author alone confirms solution');
 const after=await request('/analytics',{cookie:employee});ok(after.data.summary.confirmed_effect===before.data.summary.confirmed_effect+25000,'confirmed savings reflected in analytics');
 const board=await request('/appeals?status=done',{cookie:employee});ok(board.data.items.some(a=>a.id===created.id)&&board.data.items.every(a=>a.kind!=='praise'),'results board filters completed improvements');
-await request(path,{method:'PATCH',cookie:executor,body:{...detail.appeal,status:'progress'}});
+await request(path+'/reopen',{method:'POST',cookie:employee,body:{reason:'После проверки проблема повторилась. Просим вернуться к решению.'}});
 const reopened=await request('/analytics',{cookie:employee});ok(reopened.data.summary.confirmed_effect===before.data.summary.confirmed_effect,'reopening removes previous confirmation');
 await request(path,{method:'PATCH',cookie:executor,body:{...detail.appeal,status:'resolved'}});await request(path,{method:'PATCH',cookie:employee,body:{status:'closed'}});
 const related=await request('/appeals/A-001',{cookie:executor});await request('/appeals/A-001',{method:'PATCH',cookie:executor,body:{...related.data.appeal,parent_id:created.id}});

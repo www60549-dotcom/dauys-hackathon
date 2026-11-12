@@ -1,7 +1,7 @@
-import type {ApiNotification, AppealDetail, AppealFilters, AppealPage, CreateAppealInput, Dashboard, ManageAppealInput, Metadata, SessionUser} from './contracts';
+import type {ApiNotification, AppealDetail, AppealFilters, AppealPage, CreateAppealInput, Dashboard, EditAppealInput, ManageAppealInput, Metadata, SessionUser, UpdateAppealResult} from './contracts';
 export const SESSION_EXPIRED = 'dauys:session-expired';
 export class ApiError extends Error {
-  constructor(message: string, public readonly status: number) {super(message); this.name = 'ApiError';}
+  constructor(message: string, public readonly status: number, public readonly code?: string, public readonly currentVersion?: number) {super(message); this.name = 'ApiError';}
 }
 type RequestOptions = Omit<RequestInit, 'body'> & {body?: unknown};
 /** Cookies stay in the browser; requests use one origin and writes never auto-retry. */
@@ -21,7 +21,9 @@ export async function request<T>(path: string, {body, headers, ...options}: Requ
   if (!response.ok) {
     if (response.status === 401 && path !== '/login' && path !== '/me' && typeof window !== 'undefined') window.dispatchEvent(new Event(SESSION_EXPIRED));
     const message = payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string' ? payload.error : response.status === 401 ? 'Войдите в систему.' : `Не удалось выполнить запрос (${response.status}).`;
-    throw new ApiError(message, response.status);
+    const code = payload && typeof payload === 'object' && 'code' in payload && typeof payload.code === 'string' ? payload.code : undefined;
+    const version = payload && typeof payload === 'object' && 'current_version' in payload && typeof payload.current_version === 'number' ? payload.current_version : undefined;
+    throw new ApiError(message, response.status, code, version);
   }
   if (payload === undefined && (response.status === 204 || response.status === 201 && raw === 'Created')) return undefined as T;
   if (payload === undefined) throw new ApiError('Вместо данных API получен неожиданный ответ. Проверьте proxy.', response.status);
@@ -40,9 +42,10 @@ export const api = {
   appeals: (filters: AppealFilters, signal?: AbortSignal) => request<AppealPage>(`/appeals${queryString(filters)}`, {signal}),
   detail: (id: string, signal?: AbortSignal) => request<AppealDetail>(`/appeals/${encodeURIComponent(id)}`, {signal}),
   create: (body: CreateAppealInput) => request<{id: string}>('/appeals', {method: 'POST', body}),
-  edit: (id: string, body: {title: string; description: string; solution: string}) => request<{ok: true}>(`/appeals/${encodeURIComponent(id)}`, {method: 'PATCH', body}),
-  manage: (id: string, body: ManageAppealInput) => request<{ok: true}>(`/appeals/${encodeURIComponent(id)}`, {method: 'PATCH', body}),
-  confirm: (id: string) => request<{ok: true}>(`/appeals/${encodeURIComponent(id)}`, {method: 'PATCH', body: {status: 'closed'}}),
+  edit: (id: string, body: EditAppealInput) => request<UpdateAppealResult>(`/appeals/${encodeURIComponent(id)}`, {method: 'PATCH', body: {...body, action: 'edit'}}),
+  manage: (id: string, body: ManageAppealInput) => request<UpdateAppealResult>(`/appeals/${encodeURIComponent(id)}`, {method: 'PATCH', body: {...body, action: 'manage'}}),
+  confirm: (id: string, expectedVersion: number) => request<UpdateAppealResult>(`/appeals/${encodeURIComponent(id)}`, {method: 'PATCH', body: {action: 'confirm', expected_version: expectedVersion}}),
+  reopen: (id: string, reason: string, expectedVersion: number) => request<{ok: true}>(`/appeals/${encodeURIComponent(id)}/reopen`, {method: 'POST', body: {reason, expected_version: expectedVersion}}),
   comment: (id: string, body: string) => request<void>(`/appeals/${encodeURIComponent(id)}/comments`, {method: 'POST', body: {body}}),
   upload: (id: string, file: File) => {const body = new FormData(); body.set('file', file); return request<{id: string}>(`/appeals/${encodeURIComponent(id)}/files`, {method: 'POST', body});},
   notifications: (signal?: AbortSignal) => request<ApiNotification[]>('/notifications', {signal}),

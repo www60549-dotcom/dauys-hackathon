@@ -26,5 +26,16 @@
 .detail-history .history-dot:not([class*='status-']) {background:#64748b}
 .server-metrics+.server-panel .monthly-bar-canvas {height:320px;min-height:240px}
 button:disabled {cursor:not-allowed}
+.history-transition {display:block;margin-top:6px;font-size:14px;font-weight:650;color:#1e293b}
+.appeal-conflict {padding:20px;border:1px solid #f59e0b;border-radius:16px;background:#fffbeb;color:#78350f;font-size:14px}
+.appeal-conflict h3 {font-size:18px;font-weight:700;margin-bottom:10px}
+.appeal-conflict p,.appeal-conflict details {margin-bottom:14px}
+.appeal-conflict small {display:block;margin-top:10px;font-size:13px}
+.appeal-conflict summary {cursor:pointer;font-weight:650;margin-bottom:12px}
+.conflict-table-scroll {overflow-x:auto}
+.appeal-conflict table {width:100%;border-collapse:collapse;background:#fff;min-width:440px;color:#1e293b}
+.appeal-conflict th,.appeal-conflict td {padding:12px;border:1px solid #e2e8f0;vertical-align:top;text-align:left;font-size:14px}
+.appeal-conflict th {font-weight:650}.appeal-conflict td {width:40%}
+.appeal-conflict td>div {max-height:160px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:1000px){.server-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.employee-header{flex-wrap:wrap}.workspace-tabs{order:3;flex-basis:100%;overflow-x:auto;max-width:100%}}
 @media(max-width:600px){.server-filters{align-items:stretch;gap:10px}.server-filters>*{width:100%}.server-panel{padding:18px}.server-metrics{gap:10px}.server-metric{padding:16px}.server-upload,.server-routing-row{align-items:stretch;flex-direction:column}.server-heatmap{min-width:430px}.server-list-actions>*{max-width:100%}.server-pagination .button{padding:10px}.server-metrics+.server-panel .monthly-bar-canvas{height:260px}}

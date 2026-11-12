@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"dauys/internal/service"
 	"errors"
 	"github.com/gofiber/fiber/v2"
@@ -9,6 +10,19 @@ import (
 )
 
 func featureError(c *fiber.Ctx, err error) error {
+	var conflict *service.VersionConflict
+	if errors.As(err, &conflict) {
+		return c.Status(409).JSON(fiber.Map{"error": conflict.Error(), "code": "version_conflict", "current_version": conflict.CurrentVersion})
+	}
+	if errors.Is(err, service.ErrVersionRequired) {
+		return c.Status(428).JSON(fiber.Map{"error": err.Error(), "code": "version_required"})
+	}
+	if errors.Is(err, service.ErrInvalidTransition) {
+		return c.Status(409).JSON(fiber.Map{"error": err.Error(), "code": "invalid_transition"})
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return fail(c, 503, "Запрос не завершён вовремя. Повторите попытку")
+	}
 	if errors.Is(err, service.ErrForbidden) {
 		return fail(c, 403, err.Error())
 	}
@@ -75,14 +89,15 @@ func (a *API) savePilot(c *fiber.Ctx) error {
 }
 func (a *API) reopen(c *fiber.Ctx) error {
 	var in struct {
-		Reason string `json:"reason"`
+		Reason          string `json:"reason"`
+		ExpectedVersion int    `json:"expected_version"`
 	}
 	if c.BodyParser(&in) != nil {
 		return fail(c, 400, "Опишите повторение проблемы")
 	}
 	ctx, cancel := service.Context()
 	defer cancel()
-	if err := a.Svc.Reopen(ctx, user(c), c.Params("id"), in.Reason); err != nil {
+	if err := a.Svc.Reopen(ctx, user(c), c.Params("id"), in.Reason, in.ExpectedVersion); err != nil {
 		return featureError(c, err)
 	}
 	return c.JSON(fiber.Map{"ok": true})

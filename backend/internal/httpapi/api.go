@@ -189,7 +189,7 @@ func (a *API) detail(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	history, err := a.maps(ctx, `SELECT h.id,h.action,h.created_at,u.name FROM history h JOIN users u ON u.id=h.user_id WHERE h.appeal_id=$1 ORDER BY h.created_at`, id)
+	history, err := a.maps(ctx, `SELECT h.id::text,h.action,h.created_at,u.name,h.user_id AS actor_id,h.event_type,h.from_status,h.to_status,h.appeal_version,h.details FROM history h JOIN users u ON u.id=h.user_id WHERE h.appeal_id=$1 ORDER BY h.created_at,h.id`, id)
 	if err != nil {
 		return err
 	}
@@ -201,50 +201,34 @@ func (a *API) detail(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(fiber.Map{"appeal": item, "comments": comments, "history": history, "files": files, "linked": linked})
+	u := user(c)
+	canManage := u.Role == "admin" || u.Role == "executor" && u.ID == item.AssigneeID
+	return c.JSON(fiber.Map{"appeal": item, "comments": comments, "history": history, "files": files, "linked": linked,
+		"allowed_transitions": service.AllowedTransitions(u, item),
+		"permissions":         fiber.Map{"can_edit": u.ID == item.AuthorID && (item.Status == "new" || item.Status == "waiting"), "can_manage": canManage && item.Status != "closed" && item.Status != "rejected", "can_comment": canManage || u.ID == item.AuthorID}})
 }
 func (a *API) update(c *fiber.Ctx) error {
-	var in service.Appeal
+	var in service.UpdateInput
 	if c.BodyParser(&in) != nil {
 		return fail(c, 400, "Неверные данные")
 	}
 	ctx, cancel := service.Context()
 	defer cancel()
-	if err := a.Svc.Update(ctx, user(c), c.Params("id"), in); err != nil {
-		return fail(c, 400, err.Error())
+	version, err := a.Svc.Update(ctx, user(c), c.Params("id"), in)
+	if err != nil {
+		return featureError(c, err)
 	}
-	return c.JSON(fiber.Map{"ok": true})
+	return c.JSON(fiber.Map{"ok": true, "version": version})
 }
 func (a *API) comment(c *fiber.Ctx) error {
 	var in struct{ Body string }
-	if c.BodyParser(&in) != nil || len(strings.TrimSpace(in.Body)) < 1 || len(in.Body) > 10000 {
-		return fail(c, 400, "Введите комментарий до 10 000 символов")
+	if c.BodyParser(&in) != nil {
+		return fail(c, 400, "Неверный комментарий")
 	}
 	ctx, cancel := service.Context()
 	defer cancel()
-	item, err := a.Svc.Get(ctx, user(c).ID, c.Params("id"))
-	if err != nil {
-		return fail(c, 404, "Обращение не найдено")
-	}
-	u := user(c)
-	if u.ID != item.AuthorID && u.Role != "admin" && !(u.Role == "executor" && u.ID == item.AssigneeID) {
-		return fail(c, 403, "Обсуждение доступно автору и ответственному")
-	}
-	tx, err := a.Svc.Pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	_, err = tx.Exec(ctx, `INSERT INTO comments(appeal_id,user_id,body) VALUES($1,$2,$3)`, item.ID, u.ID, in.Body)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO notifications(user_id,appeal_id,body) SELECT DISTINCT x,$1,'Новый комментарий в обращении' FROM unnest(ARRAY[$2,$3]) AS x WHERE x<>'' AND x<>$4`, item.ID, item.AuthorID, item.AssigneeID, u.ID)
-	if err != nil {
-		return err
-	}
-	if err = tx.Commit(ctx); err != nil {
-		return err
+	if err := a.Svc.Comment(ctx, user(c), c.Params("id"), in.Body); err != nil {
+		return featureError(c, err)
 	}
 	return c.SendStatus(201)
 }
@@ -308,10 +292,10 @@ func (a *API) upload(c *fiber.Ctx) error {
 	if err = c.SaveFile(f, path); err != nil {
 		return err
 	}
-	_, err = a.Svc.Pool.Exec(ctx, `INSERT INTO attachments(id,appeal_id,name,size,content_type) VALUES($1,$2,$3,$4,$5)`, id, item.ID, filepath.Base(f.Filename), f.Size, "application/octet-stream")
+	err = a.Svc.AddAttachment(ctx, u, item.ID, id, filepath.Base(f.Filename), f.Size)
 	if err != nil {
 		_ = os.Remove(path)
-		return err
+		return featureError(c, err)
 	}
 	return c.Status(201).JSON(fiber.Map{"id": id})
 }

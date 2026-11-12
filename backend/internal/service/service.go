@@ -21,6 +21,7 @@ type User struct {
 	Department string `json:"department"`
 }
 type Appeal struct {
+	Version         int          `json:"version"`
 	Impact          *ImpactInput `json:"impact,omitempty"`
 	RecurrenceCount int          `json:"recurrence_count"`
 	ID              string       `json:"id"`
@@ -62,12 +63,12 @@ func Context() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), 5*time.Second)
 }
 
-const cols = `a.id,a.title,a.description,a.solution,a.kind,a.category,a.department,a.priority,a.status,a.author_id,u.name,coalesce(a.assignee_id,''),coalesce(e.name,'Не назначен'),coalesce(a.parent_id,''),a.affected,a.expected_effect,a.actual_effect,a.result,a.due_at,a.created_at,a.updated_at,a.confirmed_at IS NOT NULL,(SELECT count(*) FROM votes v WHERE v.appeal_id=a.id),EXISTS(SELECT 1 FROM votes v WHERE v.appeal_id=a.id AND v.user_id=$1),(SELECT count(*) FROM appeal_recurrences r WHERE r.appeal_id=a.id)`
+const cols = `a.id,a.title,a.description,a.solution,a.kind,a.category,a.department,a.priority,a.status,a.author_id,u.name,coalesce(a.assignee_id,''),coalesce(e.name,'Не назначен'),coalesce(a.parent_id,''),a.affected,a.expected_effect,a.actual_effect,a.result,a.due_at,a.created_at,a.updated_at,a.confirmed_at IS NOT NULL,(SELECT count(*) FROM votes v WHERE v.appeal_id=a.id),EXISTS(SELECT 1 FROM votes v WHERE v.appeal_id=a.id AND v.user_id=$1),(SELECT count(*) FROM appeal_recurrences r WHERE r.appeal_id=a.id),a.version`
 const joins = ` FROM appeals a JOIN users u ON u.id=a.author_id LEFT JOIN users e ON e.id=a.assignee_id `
 
 func scan(row pgx.Row) (Appeal, error) {
 	var a Appeal
-	err := row.Scan(&a.ID, &a.Title, &a.Description, &a.Solution, &a.Kind, &a.Category, &a.Department, &a.Priority, &a.Status, &a.AuthorID, &a.Author, &a.AssigneeID, &a.Assignee, &a.ParentID, &a.Affected, &a.ExpectedEffect, &a.ActualEffect, &a.Result, &a.DueAt, &a.CreatedAt, &a.UpdatedAt, &a.Confirmed, &a.Votes, &a.Voted, &a.RecurrenceCount)
+	err := row.Scan(&a.ID, &a.Title, &a.Description, &a.Solution, &a.Kind, &a.Category, &a.Department, &a.Priority, &a.Status, &a.AuthorID, &a.Author, &a.AssigneeID, &a.Assignee, &a.ParentID, &a.Affected, &a.ExpectedEffect, &a.ActualEffect, &a.Result, &a.DueAt, &a.CreatedAt, &a.UpdatedAt, &a.Confirmed, &a.Votes, &a.Voted, &a.RecurrenceCount, &a.Version)
 	age := int(time.Since(a.CreatedAt).Hours() / 24)
 	a.Score = a.Affected*3 + age*2 + a.RecurrenceCount*25
 	if a.Priority == "high" {
@@ -200,7 +201,7 @@ func (s *Service) Create(ctx context.Context, u User, a Appeal) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO history(appeal_id,user_id,action) VALUES($1,$2,'Обращение зарегистрировано и направлено по категории')`, id, u.ID)
+	err = recordEvent(ctx, tx, id, u, "appeal_created", "Обращение зарегистрировано и направлено по категории", "", "new", nil)
 	if err != nil {
 		return "", err
 	}
@@ -229,87 +230,4 @@ func oneOf(v string, all ...string) bool {
 		}
 	}
 	return false
-}
-func (s *Service) Update(ctx context.Context, u User, id string, in Appeal) error {
-	tx, err := s.Pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	var author, assignee, status, kind string
-	err = tx.QueryRow(ctx, `SELECT author_id,coalesce(assignee_id,''),status,kind FROM appeals WHERE id=$1 FOR UPDATE`, id).Scan(&author, &assignee, &status, &kind)
-	if err != nil {
-		return err
-	}
-	handler := u.Role == "admin" || (u.Role == "executor" && assignee == u.ID)
-	notificationAssignee := assignee
-	action := "Обращение обновлено"
-	if in.Status == "closed" && u.ID == author && status == "resolved" {
-		_, err = tx.Exec(ctx, `UPDATE appeals SET status='closed',confirmed_at=now(),updated_at=now() WHERE id=$1`, id)
-		action = "Автор подтвердил решение"
-	} else if handler {
-		if !(oneOf(in.Status, "new", "review", "progress", "waiting", "resolved", "rejected") || (kind == "praise" && in.Status == "closed")) || !oneOf(in.Priority, "low", "medium", "high", "critical") {
-			return errors.New("Некорректный статус или приоритет")
-		}
-		if in.Status == "resolved" || in.Status == "rejected" {
-			var pilotActive bool
-			if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pilot_experiments WHERE appeal_id=$1 AND state IN ('planned','running'))`, id).Scan(&pilotActive); err != nil {
-				return err
-			}
-			if pilotActive {
-				return errors.New("Сначала подведите итоги активного пилота, затем зафиксируйте решение обращения")
-			}
-		}
-		if (in.Status == "resolved" || in.Status == "rejected") && len(strings.TrimSpace(in.Result)) < 10 {
-			return errors.New("Опишите решение или причину отказа (от 10 символов)")
-		}
-		if in.ActualEffect < 0 || in.ActualEffect > 1000000000 {
-			return errors.New("Некорректный эффект")
-		}
-		if in.AssigneeID != "" {
-			var role string
-			if e := tx.QueryRow(ctx, `SELECT role FROM users WHERE id=$1`, in.AssigneeID).Scan(&role); e != nil || role == "employee" {
-				return errors.New("Выберите исполнителя")
-			}
-		}
-		if in.ParentID != "" {
-			if in.ParentID == id {
-				return errors.New("Нельзя связать обращение с самим собой")
-			}
-			var parent *string
-			if e := tx.QueryRow(ctx, `SELECT parent_id FROM appeals WHERE id=$1 FOR UPDATE`, in.ParentID).Scan(&parent); e != nil || parent != nil {
-				return errors.New("Выберите самостоятельную тему")
-			}
-			var children int
-			_ = tx.QueryRow(ctx, `SELECT count(*) FROM appeals WHERE parent_id=$1`, id).Scan(&children)
-			if children > 0 {
-				return errors.New("Тема уже содержит связанные обращения")
-			}
-		}
-		if in.DueAt.IsZero() {
-			return errors.New("Укажите срок")
-		}
-		_, err = tx.Exec(ctx, `UPDATE appeals SET status=$2,priority=$3,assignee_id=nullif($4,''),parent_id=nullif($5,''),result=$6,actual_effect=$7,due_at=$8,confirmed_at=NULL,updated_at=now() WHERE id=$1`, id, in.Status, in.Priority, in.AssigneeID, in.ParentID, in.Result, in.ActualEffect, in.DueAt)
-		notificationAssignee = in.AssigneeID
-		action = fmt.Sprintf("Статус: %s → %s. Обновлены ответственный, срок и решение", status, in.Status)
-	} else if u.ID == author && oneOf(status, "new", "waiting") {
-		if len([]rune(in.Title)) < 5 || len([]rune(in.Title)) > 180 || len([]rune(in.Description)) < 10 || len(in.Description) > 20000 || len(in.Solution) > 10000 {
-			return errors.New("Проверьте заголовок и описание")
-		}
-		_, err = tx.Exec(ctx, `UPDATE appeals SET title=$2,description=$3,solution=$4,updated_at=now() WHERE id=$1`, id, in.Title, in.Description, in.Solution)
-	} else {
-		return errors.New("Нет прав на изменение обращения")
-	}
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO history(appeal_id,user_id,action) VALUES($1,$2,$3)`, id, u.ID, action)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO notifications(user_id,appeal_id,body) SELECT DISTINCT x,$1,$2 FROM unnest(ARRAY[$3,$4,$5]) AS x WHERE x<>'' AND x<>$6`, id, action, author, assignee, notificationAssignee, u.ID)
-	if err != nil {
-		return err
-	}
-	return tx.Commit(ctx)
 }

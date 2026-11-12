@@ -21,6 +21,9 @@ export interface HistoryEntry {
   createdAt: number;
   label?: string;
   actor?: string;
+  fromStatus?: Status;
+  eventType?: string;
+  version?: number;
 }
 
 export interface Appeal {

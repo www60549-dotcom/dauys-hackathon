@@ -1,0 +1,871 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Dauys workflow API",
+    "version": "0.3.0",
+    "description": "Versioned appeal updates and structured audit history. All omitted PATCH fields are preserved. Legacy history is not reconstructed. Cookies and role checks are mandatory. Other existing API modules are documented separately."
+  },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "security": [
+    {
+      "session": []
+    }
+  ],
+  "paths": {
+    "/appeals/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getAppeal",
+        "responses": {
+          "200": {
+            "description": "Current appeal, permissions and typed history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Detail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateAppeal",
+        "description": "The expected_version must be the revision viewed by the actor. A stale revision returns 409 without changing data or history. Closed/rejected appeals cannot be managed. Only the author can confirm a resolved non-praise appeal. Reopening is a separate author command.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/EditCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ManageCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ConfirmCommand"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Committed revision, or unchanged revision for a no-op",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Actor cannot perform this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict or disallowed transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Missing expected_version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/appeals/{id}/reopen": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "reopenAppeal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReopenCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Author reopened the appeal; fetch the latest detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Actor cannot perform this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict or disallowed transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Missing expected_version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "dauys_session"
+      }
+    },
+    "schemas": {
+      "Appeal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "solution": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "problem",
+              "idea",
+              "praise"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "review",
+              "progress",
+              "waiting",
+              "resolved",
+              "closed",
+              "rejected"
+            ]
+          },
+          "author_id": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "assignee_id": {
+            "type": "string"
+          },
+          "assignee": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          },
+          "affected": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "expected_effect": {
+            "type": "integer"
+          },
+          "actual_effect": {
+            "type": "integer"
+          },
+          "result": {
+            "type": "string"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "votes": {
+            "type": "integer"
+          },
+          "voted": {
+            "type": "boolean"
+          },
+          "score": {
+            "type": "integer"
+          },
+          "recurrence_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "title",
+          "description",
+          "solution",
+          "kind",
+          "category",
+          "department",
+          "priority",
+          "status",
+          "author_id",
+          "author",
+          "assignee_id",
+          "assignee",
+          "parent_id",
+          "affected",
+          "expected_effect",
+          "actual_effect",
+          "result",
+          "due_at",
+          "created_at",
+          "updated_at",
+          "confirmed",
+          "votes",
+          "voted",
+          "score",
+          "recurrence_count"
+        ]
+      },
+      "HistoryEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "actor_id": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "from_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "new",
+              "review",
+              "progress",
+              "waiting",
+              "resolved",
+              "closed",
+              "rejected",
+              null
+            ]
+          },
+          "to_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "new",
+              "review",
+              "progress",
+              "waiting",
+              "resolved",
+              "closed",
+              "rejected",
+              null
+            ]
+          },
+          "appeal_version": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "created_at",
+          "name",
+          "actor_id",
+          "event_type",
+          "from_status",
+          "to_status",
+          "appeal_version",
+          "details"
+        ]
+      },
+      "Permissions": {
+        "type": "object",
+        "properties": {
+          "can_edit": {
+            "type": "boolean"
+          },
+          "can_manage": {
+            "type": "boolean"
+          },
+          "can_comment": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "can_edit",
+          "can_manage",
+          "can_comment"
+        ]
+      },
+      "Detail": {
+        "type": "object",
+        "properties": {
+          "appeal": {
+            "$ref": "#/components/schemas/Appeal"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryEvent"
+            }
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
+                "author_id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "employee",
+                    "executor",
+                    "admin"
+                  ]
+                },
+                "body": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "id",
+                "author_id",
+                "name",
+                "role",
+                "body",
+                "created_at"
+              ]
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "size"
+              ]
+            }
+          },
+          "linked": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "affected": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "affected"
+              ]
+            }
+          },
+          "allowed_transitions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "new",
+                "review",
+                "progress",
+                "waiting",
+                "resolved",
+                "closed",
+                "rejected"
+              ]
+            }
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/Permissions"
+          }
+        },
+        "required": [
+          "appeal",
+          "history",
+          "comments",
+          "files",
+          "linked",
+          "allowed_transitions",
+          "permissions"
+        ]
+      },
+      "EditCommand": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "const": "edit"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 180
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10
+          },
+          "solution": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "expected_version"
+        ],
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "required": [
+              "title"
+            ]
+          },
+          {
+            "required": [
+              "description"
+            ]
+          },
+          {
+            "required": [
+              "solution"
+            ]
+          }
+        ]
+      },
+      "ManageCommand": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "const": "manage"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "review",
+              "progress",
+              "waiting",
+              "resolved",
+              "closed",
+              "rejected"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "assignee_id": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string"
+          },
+          "actual_effect": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "action",
+          "expected_version"
+        ],
+        "additionalProperties": false
+      },
+      "ConfirmCommand": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "const": "confirm"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "action",
+          "expected_version"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "ok",
+          "version"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "version_conflict",
+              "version_required",
+              "invalid_transition"
+            ]
+          },
+          "current_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "ReopenCommand": {
+        "type": "object",
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 3000
+          }
+        },
+        "required": [
+          "expected_version",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

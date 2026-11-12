@@ -29,6 +29,7 @@ type Appeal struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 	ConfirmedAt    pgtype.Timestamptz
+	Version        int32
 }
 
 type AppealImpact struct {
@@ -73,11 +74,16 @@ type Comment struct {
 }
 
 type History struct {
-	ID        int64
-	AppealID  string
-	UserID    string
-	Action    string
-	CreatedAt pgtype.Timestamptz
+	ID            int64
+	AppealID      string
+	UserID        string
+	Action        string
+	CreatedAt     pgtype.Timestamptz
+	EventType     string
+	FromStatus    pgtype.Text
+	ToStatus      pgtype.Text
+	AppealVersion pgtype.Int4
+	Details       []byte
 }
 
 type Notification struct {

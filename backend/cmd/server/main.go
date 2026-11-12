@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	schema "dauys/db"
 	"dauys/internal/db"
 	"dauys/internal/httpapi"
 	"dauys/internal/service"
@@ -15,7 +16,7 @@ import (
 	"time"
 )
 
-//go:embed schema.sql seed.json migration_002.sql
+//go:embed seed.json
 var assets embed.FS
 
 func main() {
@@ -41,7 +42,7 @@ func main() {
 	if err = pool.Ping(ctx); err != nil {
 		panic(err)
 	}
-	if err = migrate(ctx, pool); err != nil {
+	if err = schema.Migrate(ctx, pool); err != nil {
 		panic(err)
 	}
 	if err = seed(ctx, pool); err != nil {
@@ -71,46 +72,4 @@ func main() {
 	<-stop
 	slog.Info("shutting down")
 	_ = app.ShutdownWithTimeout(10 * time.Second)
-}
-func migrate(ctx context.Context, pool *pgxpool.Pool) error {
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(716203)`); err != nil {
-		return err
-	}
-	if _, err = tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations(version integer PRIMARY KEY,applied_at timestamptz NOT NULL DEFAULT now())`); err != nil {
-		return err
-	}
-	var exists bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=1)`).Scan(&exists); err != nil {
-		return err
-	}
-	if !exists {
-		schema, _ := assets.ReadFile("schema.sql")
-		if _, err = tx.Exec(ctx, string(schema)); err != nil {
-			return err
-		}
-		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations(version) VALUES(1)`); err != nil {
-			return err
-		}
-	}
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=2)`).Scan(&exists); err != nil {
-		return err
-	}
-	if !exists {
-		migration, readErr := assets.ReadFile("migration_002.sql")
-		if readErr != nil {
-			return readErr
-		}
-		if _, err = tx.Exec(ctx, string(migration)); err != nil {
-			return err
-		}
-		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations(version) VALUES(2)`); err != nil {
-			return err
-		}
-	}
-	return tx.Commit(ctx)
 }

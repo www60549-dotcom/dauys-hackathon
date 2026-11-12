@@ -6,7 +6,15 @@ const source=JSON.parse(await readFile(new URL('./dataset-source.json',import.me
 const seed=JSON.parse(await readFile(new URL('../../backend/cmd/server/seed.json',import.meta.url),'utf8'));
 let checks=0;
 function check(value,label){assert.ok(value,label);checks++;console.log('PASS',label)}
+async function versionedBody(path,body,cookie,method){
+ if(body && ((method==='PATCH' && /^\/appeals\/[^/?]+$/.test(path)) || (method==='POST' && /^\/appeals\/[^/?]+\/reopen$/.test(path)))){
+  const current=await fetch(base+'/api'+path.replace(/\/reopen$/,''),{headers:cookie?{Cookie:cookie}:{}});
+  if(current.ok) body={...body,expected_version:(await current.json()).appeal.version};
+ }
+ return body;
+}
 async function request(path,{method='GET',body,cookie,status=200}={}){
+ body=await versionedBody(path,body,cookie,method);
  const response=await fetch(base+'/api'+path,{method,headers:{'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:body===undefined?undefined:JSON.stringify(body)});
  const text=await response.text();let data;try{data=JSON.parse(text)}catch{data=text}
  assert.equal(response.status,status,`${method} ${path}: ${text}`);
@@ -47,7 +55,7 @@ check(!detail.appeal.assignee_id,'unassigned category retains appeal for adminis
 check((await get('/notifications',admin)).some(n=>n.appeal_id===appeal),'administrator notified about unassigned appeal');
 const queue=await get('/appeals?unassigned=true&q='+marker,admin);
 check(queue.items.some(a=>a.id===appeal)&&queue.items.every(a=>!a.assignee_id)&&queue.counts.total===queue.total,'queue filter and counters agree');
-await request(path,{cookie:executor,method:'PATCH',body:{...detail.appeal,status:'progress'},status:400});
+await request(path,{cookie:executor,method:'PATCH',body:{...detail.appeal,status:'progress'},status:403});
 check(true,'executor cannot manage an appeal before assignment');
 await request(path,{cookie:admin,method:'PATCH',body:{...detail.appeal,status:'review',assignee_id:'executor'}});
 check((await get('/notifications',executor)).some(n=>n.appeal_id===appeal),'new assignee receives notification after manual assignment');
@@ -56,9 +64,9 @@ await request(path,{cookie:executor,method:'PATCH',body:{...detail.appeal,status
 await request(path+'/comments',{cookie:executor,method:'POST',status:201,body:{body:'Пришлите пример двух версий инструкции для проверки.'}});
 await request(path+'/comments',{cookie:employee,method:'POST',status:201,body:{body:'Пример уточнён: инструкция находится в двух общих папках.'}});
 detail=await get(path);
-check(detail.appeal.status==='waiting'&&detail.comments.length===2&&detail.history.some(h=>h.action.includes('waiting')),'clarification, author response and status history persist');
+check(detail.appeal.status==='waiting'&&detail.comments.length===2&&detail.history.some(h=>h.event_type==='status_changed'&&h.to_status==='waiting'&&h.from_status==='review'),'clarification, author response and status history persist');
 await request(path,{cookie:executor,method:'PATCH',body:{...detail.appeal,status:'resolved',result:'Закреплена актуальная инструкция; старые версии перенесены в архив.',actual_effect:0}});
-await request(path,{cookie:executor,method:'PATCH',body:{...detail.appeal,status:'closed'},status:400});
+await request(path,{cookie:executor,method:'PATCH',body:{...detail.appeal,status:'closed'},status:409});
 await request(path,{cookie:employee,method:'PATCH',body:{status:'closed'}});
 check((await get(path)).appeal.confirmed,'A-010 flow requires author confirmation');
 
@@ -86,7 +94,7 @@ check(filtered.total===1&&filtered.items[0].id===overdue&&filtered.counts.total=
 const previous=new Date(Date.parse(future)-86400000).toISOString().slice(0,10);
 check((await get('/appeals?'+new URLSearchParams({q:marker,category:'Оперативность',due_to:previous}))).total===0,'due upper boundary excludes later days');
 overdueDetail=await get('/appeals/'+overdue);
-await request('/appeals/'+overdue,{cookie:executor,method:'PATCH',body:{...overdueDetail.appeal,due_at:new Date(Date.now()-86400000).toISOString()}});
+await request('/appeals/'+overdue,{cookie:executor,method:'PATCH',body:{due_at:new Date(Date.now()-86400000).toISOString()}});
 filtered=await get('/appeals?overdue=true&q='+marker);
 check(filtered.items.length===1&&filtered.items[0].id===overdue,'overdue filter excludes closed, rejected and completed appeals');
 check((await get('/appeals?q='+overdue)).items.some(a=>a.id===overdue),'search accepts appeal ID');

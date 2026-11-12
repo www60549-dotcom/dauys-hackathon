@@ -33,6 +33,9 @@ test('API encodes filters, preserving page and empty-value semantics', () => {
   const query = new URLSearchParams(queryString({q: 'доступ & проект', page: 2, status: '', department: undefined}));
   assert.equal(query.get('q'), 'доступ & проект'); assert.equal(query.get('page'), '2'); assert.equal(query.has('status'), false);
 });
+test('conflict response preserves the code and current version for draft recovery', async () => {
+  await mockFetch(async () => new Response('{"error":"Карточка изменена","code":"version_conflict","current_version":4}',{status:409,headers:{'Content-Type':'application/json'}}),async()=>assert.rejects(request('/appeals/id',{method:'PATCH',body:{expected_version:2}}),error=>error instanceof ApiError && error.status===409 && error.code==='version_conflict' && error.currentVersion===4));
+});
 const item = {id: 'A-id', title: 'Обращение', description: 'Описание', category: 'IT', department: 'IT', kind: 'problem', status: 'resolved', priority: 'critical', author_id: 'u1', author: 'Одинаковое Имя', assignee_id: 'u2', assignee: 'Одинаковое Имя', created_at: '2026-11-01T09:00:00+05:00', updated_at: '2026-11-02T09:00:00+05:00', due_at: '2026-11-08T09:00:00+05:00', result: 'Готовое решение', confirmed: false, votes: 0, voted: false};
 test('adapter preserves IDs, timezone and unknown history instead of inventing transitions', () => {
   const appeal = toAppeal(item, {comments: [{id: 1, author_id: 'u2', name: 'Одинаковое Имя', body: 'Ответ', created_at: '2026-11-01T11:00:00+05:00'}], history: [{id: 2, action: 'Данные обновлены', name: 'Исполнитель', created_at: item.updated_at}]});
@@ -42,4 +45,8 @@ test('adapter preserves IDs, timezone and unknown history instead of inventing t
 test('notification read state comes from read_at and IDs are normalized', () => {
   const notification = {id: 7, appeal_id: item.id, body: 'Ответ', created_at: item.updated_at, read_at: null};
   assert.equal(toNotification(notification).read, false); assert.equal(toNotification({...notification, read_at: item.updated_at}).read, true); assert.equal(toNotification(notification).id, '7');
+});
+test('adapter reads explicit transition fields without copying the current status into older events',()=>{
+  const appeal=toAppeal({...item,status:'closed'},{comments:[],history:[{action:'Статус изменён',name:'Исполнитель',created_at:item.updated_at,event_type:'status_changed',from_status:'progress',to_status:'resolved',appeal_version:3}]});
+  assert.equal(appeal.history[0].status,'resolved'); assert.equal(appeal.history[0].fromStatus,'progress'); assert.equal(appeal.history[0].version,3);
 });

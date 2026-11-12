@@ -15,8 +15,8 @@ export function toAppeal(item: ApiAppeal, detail?: AppealDetail): Appeal {
     firstResponseHours: firstReply ? Math.max(0, (apiDate(firstReply.created_at) - apiDate(item.created_at)) / 3_600_000) : null,
     result: item.result, votes: item.votes, voted: item.voted, confirmed: item.confirmed,
     comments: detail?.comments.map(comment => ({id: String(comment.id), author: comment.name, body: comment.body, createdAt: apiDate(comment.created_at)})) ?? [],
-    // Legacy history stays text: status transitions are never guessed from prose.
-    history: detail?.history.map(entry => ({createdAt: apiDate(entry.created_at), label: entry.action, actor: entry.name})) ?? [],
+    // Only explicit status events are used; imported text remains a neutral entry.
+    history: detail?.history.map(entry => ({createdAt: apiDate(entry.created_at), label: entry.action, actor: entry.name, status: entry.to_status ?? undefined, fromStatus: entry.from_status ?? undefined, eventType: entry.event_type, version: entry.appeal_version ?? undefined})) ?? [],
   };
 }
 export function toNotification(item: ApiNotification): Notification {

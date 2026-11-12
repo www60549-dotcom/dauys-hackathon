@@ -38,18 +38,29 @@ func SaveImpactTx(ctx context.Context, tx pgx.Tx, id string, i ImpactInput) erro
 var ErrForbidden = errors.New("Нет прав на это действие")
 var ErrConflict = errors.New("Данные уже изменились. Обновите карточку и повторите действие")
 
-type lockedAppeal struct{ Author, Assignee, Status, Kind string }
+type lockedAppeal struct {
+	Author, Assignee, Status, Kind string
+	Version                        int
+}
 
 func lockAppeal(ctx context.Context, tx pgx.Tx, id string) (lockedAppeal, error) {
 	var a lockedAppeal
-	err := tx.QueryRow(ctx, `SELECT author_id,coalesce(assignee_id,''),status,kind FROM appeals WHERE id=$1 FOR UPDATE`, id).Scan(&a.Author, &a.Assignee, &a.Status, &a.Kind)
+	err := tx.QueryRow(ctx, `SELECT author_id,coalesce(assignee_id,''),status,kind,version FROM appeals WHERE id=$1 FOR UPDATE`, id).Scan(&a.Author, &a.Assignee, &a.Status, &a.Kind, &a.Version)
 	return a, err
 }
 func manages(u User, a lockedAppeal) bool {
 	return u.Role == "admin" || u.Role == "executor" && u.ID == a.Assignee
 }
-func recordFeature(ctx context.Context, tx pgx.Tx, id string, u User, a lockedAppeal, action string) error {
-	if _, err := tx.Exec(ctx, `INSERT INTO history(appeal_id,user_id,action) VALUES($1,$2,$3)`, id, u.ID, action); err != nil {
+func recordFeature(ctx context.Context, tx pgx.Tx, id string, u User, a lockedAppeal, action, eventType string) error {
+	var status string
+	if err := tx.QueryRow(ctx, `SELECT status FROM appeals WHERE id=$1`, id).Scan(&status); err != nil {
+		return err
+	}
+	from, to := "", ""
+	if status != a.Status {
+		from, to = a.Status, status
+	}
+	if err := recordEvent(ctx, tx, id, u, eventType, action, from, to, nil); err != nil {
 		return err
 	}
 	_, err := tx.Exec(ctx, `INSERT INTO notifications(user_id,appeal_id,body) SELECT DISTINCT x,$1,$2 FROM unnest(ARRAY[$3,$4]) x WHERE x<>'' AND x<>$5`, id, action, a.Author, a.Assignee, u.ID)
@@ -74,12 +85,12 @@ func (s *Service) SaveImpact(ctx context.Context, u User, id string, in ImpactIn
 	if err = SaveImpactTx(ctx, tx, id, in); err != nil {
 		return err
 	}
-	if err = recordFeature(ctx, tx, id, u, a, "Обновлена расчётная цена ожидания (оценка, не подтверждённая экономия)"); err != nil {
+	if err = recordFeature(ctx, tx, id, u, a, "Обновлена расчётная цена ожидания (оценка, не подтверждённая экономия)", "impact_updated"); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
 }
-func (s *Service) Reopen(ctx context.Context, u User, id, reason string) error {
+func (s *Service) Reopen(ctx context.Context, u User, id, reason string, expectedVersion int) error {
 	reason = strings.TrimSpace(reason)
 	if len([]rune(reason)) < 10 || len([]rune(reason)) > 3000 {
 		return errors.New("Опишите повторение проблемы: от 10 до 3000 символов")
@@ -96,6 +107,12 @@ func (s *Service) Reopen(ctx context.Context, u User, id, reason string) error {
 	if u.ID != a.Author || a.Kind == "praise" {
 		return ErrForbidden
 	}
+	if expectedVersion < 1 {
+		return ErrVersionRequired
+	}
+	if expectedVersion != a.Version {
+		return &VersionConflict{CurrentVersion: a.Version}
+	}
 	if a.Status != "closed" && a.Status != "resolved" {
 		return ErrConflict
 	}
@@ -107,7 +124,7 @@ func (s *Service) Reopen(ctx context.Context, u User, id, reason string) error {
 	if err != nil {
 		return err
 	}
-	if err = recordFeature(ctx, tx, id, u, a, "Проблема вернулась → progress. Предыдущее решение сохранено, подтверждённый эффект снят. Причина: "+reason); err != nil {
+	if err = recordFeature(ctx, tx, id, u, a, "Проблема вернулась → progress. Предыдущее решение сохранено, подтверждённый эффект снят. Причина: "+reason, "appeal_reopened"); err != nil {
 		return err
 	}
 	if a.Assignee == "" {
@@ -234,7 +251,8 @@ func (s *Service) SavePilot(ctx context.Context, u User, id string, in PilotInpu
 	if err != nil {
 		return err
 	}
-	if err = recordFeature(ctx, tx, id, u, a, action); err != nil {
+	eventType := map[string]string{"create": "pilot_planned", "save": "pilot_updated", "start": "pilot_started", "finish": "pilot_evaluated"}[in.Action]
+	if err = recordFeature(ctx, tx, id, u, a, action, eventType); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
