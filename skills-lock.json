@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "skills": {
+    "bklit-ui": {
+      "source": "bklit/bklit-ui",
+      "sourceType": "github",
+      "skillPath": "skills/bklit-ui/SKILL.md",
+      "computedHash": "e274fccb3e3d0cd47df82e6d7a016934ec042ea47a9176a1e5a3211a2772ecda",
+      "installMode": "copy"
+    }
+  }
+}

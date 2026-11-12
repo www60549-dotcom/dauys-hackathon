@@ -1,0 +1,18 @@
+{
+  "environment": {
+    "node": "v24.15.0",
+    "platform": "win32",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H"
+  },
+  "particles": 2400,
+  "warmupFrames": 240,
+  "measuredFrames": 600,
+  "cpuStepMs": {
+    "mean": 0.054,
+    "p95": 0.073,
+    "max": 0.23
+  },
+  "note": "CPU physics only. Does not measure GPU, WebGL, UI, display refresh rate, INP or browser FPS.",
+  "date": "2026-11-12",
+  "timezone": "Asia/Qyzylorda"
+}

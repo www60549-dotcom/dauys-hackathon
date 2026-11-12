@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.vite/
+*.log
+.env
+.env.*
+!.env.example
+backend/bin/
+data/
+.runtime/
+.agents/
+coverage/
+playwright-report/
+test-results/
