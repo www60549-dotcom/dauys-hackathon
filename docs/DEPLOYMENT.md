@@ -38,6 +38,10 @@ free web service и free PostgreSQL. Root Dockerfile собирает React и G
 
 После готовности публичного API:
 
+Проект Vercel уже связан с репозиторием. До появления API автодеплой отключён,
+попытка ручной сборки завершится понятной ошибкой конфигурации. Следующая команда
+создаёт готовый rewrite и заменяет подготовительную конфигурацию.
+
 ```powershell
 node scripts/prepare-vercel.mjs https://your-api.onrender.com
 npx vercel@latest --prod --yes
