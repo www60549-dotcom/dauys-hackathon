@@ -3,7 +3,7 @@ dist
 .git
 .vercel
 .env*
-data
+data/**
 output
 backend/bin
 .agents
