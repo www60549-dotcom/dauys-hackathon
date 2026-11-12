@@ -4,6 +4,7 @@ const base=process.env.BASE_URL || 'http://127.0.0.1:8081';
 const cookies={}, users={}; let checks=0;
 const check=(condition,label)=>{assert.ok(condition,label);checks++;console.log('PASS',label);};
 async function req(path,{as='employee',method='GET',body,expected=200}={}){
+  if(body && /\/appeals\/[^/?]+\/pilots$/.test(path) && body.expected_appeal_version===undefined){const parent=await req(path.replace(/\/pilots$/,''),{as});body={...body,expected_appeal_version:parent.data.appeal.version};}
   const headers={'Content-Type':'application/json'}; if(cookies[as])headers.Cookie=cookies[as];
   const response=await fetch(base+'/api'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
   const raw=await response.text(); let data; try{data=JSON.parse(raw);}catch{data=raw;}

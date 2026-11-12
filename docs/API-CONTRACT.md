@@ -55,6 +55,25 @@ POST `/api/appeals/:id/files`, multipart field `file`, до 10 МиБ.
 Загрузка выполняется в уже созданной карточке: её ошибка не создаёт новое обращение.
 Скачивание: `/api/files/:id` с cookie. Content-Type multipart вручную не задаётся.
 
+## Бизнес-модули
+
+- GET `/appeals/:id/features` возвращает согласованный repeatable-read snapshot:
+  appeal_version, permissions.can_assess/can_pilot, impact, pilots, recurrences.
+- PATCH `/appeals/:id/impact`: people, minutes, occurrences_month, hourly_rate,
+  обязательный expected_appeal_version. Сохранение увеличивает версию обращения.
+- POST `/appeals/:id/pilots`: action create/save/start/finish и обязательный
+  expected_appeal_version. Для сохранения/старта/итогов также нужны id/version пилота.
+- Любое изменение пилота увеличивает общую версию; snapshot объединяет план
+  и оценку с той же версией. Чужие или устаревшие значения не перезаписываются.
+- После старта baseline/target зафиксированы. Итог требует actual и conclusion;
+  0 — допустимое измерение, отсутствие actual — ошибка.
+- Цена ожидания считается за месяц. Нулевая ставка даёт часы без придуманной
+  денежной оценки. Оценка и успех пилота не добавляют подтверждённую экономию.
+- Для praise расчёт потерь и пилоты недоступны. Закрытые обращения доступны для чтения.
+- GET `/appeals/similar?text=...&exclude=...`: реальные тематические совпадения.
+  Клиент ограничивает текст 240 Unicode-символами, использует debounce и отмену
+  запросов. Результат не считается точностью AI или доказанным дубликатом.
+
 ## Аналитика и SSE
 
 Аналитика запрашивается отдельным серверным агрегатом, а не считается по странице.

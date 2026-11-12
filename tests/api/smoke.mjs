@@ -4,6 +4,12 @@ const base=process.env.BASE_URL||'http://localhost:5173';
 let checks=0;
 function ok(value,label){assert.ok(value,label);checks++;console.log('PASS',label)}
 async function versionedBody(path,body,cookie,method){
+ if(body && /\/appeals\/[^/?]+\/(impact|pilots)$/.test(path) && body.expected_appeal_version===undefined){
+  const parent=path.replace(/\/(impact|pilots)$/,'');
+  const state=await fetch(base+'/api'+parent,{headers:cookie?{Cookie:cookie}:{}});
+  if(state.ok)body={...body,expected_appeal_version:(await state.json()).appeal.version};
+ }
+
  if(body && ((method==='PATCH' && /^\/appeals\/[^/?]+$/.test(path)) || (method==='POST' && /^\/appeals\/[^/?]+\/reopen$/.test(path)))){
   const current=await fetch(base+'/api'+path.replace(/\/reopen$/,''),{headers:cookie?{Cookie:cookie}:{}});
   if(current.ok) body={...body,expected_version:(await current.json()).appeal.version};

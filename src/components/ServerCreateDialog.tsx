@@ -4,6 +4,7 @@ import {Dialog} from './Dialog';
 import {PrimaryButton} from './PrimaryButton';
 import {api} from '../api/client';
 import {useSpeechInput} from '../hooks/useSpeechInput';
+import {SimilarAppeals} from './SimilarAppeals';
 import {kindLabels, type ComposeContext, type Kind} from '../types';
 import type {CreateAppealInput, Metadata, SessionUser} from '../api/contracts';
 
@@ -30,6 +31,7 @@ export function ServerCreateDialog({open, kind, context, meta, user, onClose, on
       <label className="form-field">Что произошло или что предлагаете?<textarea required minLength={10} maxLength={10000} rows={5} value={form.description} disabled={pending} onChange={event => setForm({...form, description: event.target.value})}/></label>
       {speech.supported && <button type="button" className="text-button" disabled={pending} onClick={speech.toggle}><Mic size={17}/>{speech.listening ? 'Остановить запись' : 'Надиктовать описание'}</button>}
       {speech.error && <p className="form-error" role="status">{speech.error}</p>}
+      <SimilarAppeals title={form.title} description={form.description} userId={user.id} active={open && !pending}/>
       <div className="form-grid"><label className="form-field">Приоритет<select value={form.priority} disabled={pending} onChange={event => setForm({...form, priority: event.target.value as CreateAppealInput['priority']})}><option value="low">Низкий</option><option value="medium">Обычный</option><option value="high">Высокий</option><option value="critical">Критический</option></select></label><label className="form-field">Кого затрагивает, человек<input type="number" min={1} max={100000} step={1} required value={form.affected} disabled={pending} onChange={event => setForm({...form, affected: Number(event.target.value)})}/></label></div>
       <p className="muted">{officer ? `Ответственный по категории: ${officer.name}.` : 'Если по категории нет ответственного, обращение поступит администратору.'} Вложения можно добавить в карточке после отправки.</p>
       {error && <p className="form-error" role="alert">{error}</p>}

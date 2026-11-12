@@ -3,6 +3,14 @@ export type Role = 'employee' | 'executor' | 'admin';
 export type Priority = 'low' | 'medium' | 'high' | 'critical';
 export interface SessionUser {id: string; name: string; email: string; role: Role; department: string}
 export interface ApiImpact {people: number; minutes: number; occurrences_month: number; hourly_rate: number}
+export interface SavedImpact extends ApiImpact {hours_month: number; cost_month: number; updated_at: string}
+export interface PilotPlan {hypothesis: string; scope: string; metric: string; unit: string; baseline: number; target: number; direction: 'decrease' | 'increase'; owner_id: string; end_at: string}
+export interface Pilot extends PilotPlan {id: number; version: number; owner: string; state: 'planned' | 'running' | 'evaluated'; actual: number | null; conclusion: string; goal_met: boolean | null; created_at: string; started_at: string | null; evaluated_at: string | null}
+export type PilotCommand = {expected_appeal_version: number} & (
+  {action: 'create'} & PilotPlan | {action: 'save'; id: number; version: number} & PilotPlan |
+  {action: 'start'; id: number; version: number} | {action: 'finish'; id: number; version: number; actual: number; conclusion: string});
+export interface BusinessFeatures {appeal_version: number; permissions: {can_assess: boolean; can_pilot: boolean}; impact: SavedImpact | null; pilots: Pilot[]; recurrences: {id: number; reason: string; previous_result: string; previous_effect: number; previous_confirmed_at: string | null; created_at: string; author: string}[]}
+export interface SimilarAppeal {id: string; title: string; status: Status; category: string; department: string; score: number; reasons: string[]; method: string}
 export interface ApiAppeal {
   version: number;
   id: string; title: string; description: string; solution: string; kind: Kind; category: string; department: string; priority: Priority; status: Status;

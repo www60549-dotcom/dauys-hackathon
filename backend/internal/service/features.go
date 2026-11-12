@@ -12,10 +12,11 @@ import (
 )
 
 type ImpactInput struct {
-	People           int     `json:"people"`
-	Minutes          float64 `json:"minutes"`
-	OccurrencesMonth float64 `json:"occurrences_month"`
-	HourlyRate       float64 `json:"hourly_rate"`
+	ExpectedAppealVersion int     `json:"expected_appeal_version"`
+	People                int     `json:"people"`
+	Minutes               float64 `json:"minutes"`
+	OccurrencesMonth      float64 `json:"occurrences_month"`
+	HourlyRate            float64 `json:"hourly_rate"`
 }
 
 func (i ImpactInput) Validate() error {
@@ -82,7 +83,19 @@ func (s *Service) SaveImpact(ctx context.Context, u User, id string, in ImpactIn
 	if !manages(u, a) && !(u.ID == a.Author && (a.Status == "new" || a.Status == "waiting")) {
 		return ErrForbidden
 	}
+	if in.ExpectedAppealVersion < 1 {
+		return ErrVersionRequired
+	}
+	if in.ExpectedAppealVersion != a.Version {
+		return &VersionConflict{CurrentVersion: a.Version}
+	}
+	if a.Kind == "praise" || oneOf(a.Status, "resolved", "closed", "rejected") {
+		return ErrInvalidTransition
+	}
 	if err = SaveImpactTx(ctx, tx, id, in); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE appeals SET updated_at=now() WHERE id=$1`, id); err != nil {
 		return err
 	}
 	if err = recordFeature(ctx, tx, id, u, a, "Обновлена расчётная цена ожидания (оценка, не подтверждённая экономия)", "impact_updated"); err != nil {
@@ -137,20 +150,21 @@ func (s *Service) Reopen(ctx context.Context, u User, id, reason string, expecte
 }
 
 type PilotInput struct {
-	ID         int64    `json:"id"`
-	Version    int      `json:"version"`
-	Action     string   `json:"action"`
-	Hypothesis string   `json:"hypothesis"`
-	Scope      string   `json:"scope"`
-	Metric     string   `json:"metric"`
-	Unit       string   `json:"unit"`
-	Baseline   float64  `json:"baseline"`
-	Target     float64  `json:"target"`
-	Actual     *float64 `json:"actual"`
-	Direction  string   `json:"direction"`
-	OwnerID    string   `json:"owner_id"`
-	EndAt      string   `json:"end_at"`
-	Conclusion string   `json:"conclusion"`
+	ExpectedAppealVersion int      `json:"expected_appeal_version"`
+	ID                    int64    `json:"id"`
+	Version               int      `json:"version"`
+	Action                string   `json:"action"`
+	Hypothesis            string   `json:"hypothesis"`
+	Scope                 string   `json:"scope"`
+	Metric                string   `json:"metric"`
+	Unit                  string   `json:"unit"`
+	Baseline              float64  `json:"baseline"`
+	Target                float64  `json:"target"`
+	Actual                *float64 `json:"actual"`
+	Direction             string   `json:"direction"`
+	OwnerID               string   `json:"owner_id"`
+	EndAt                 string   `json:"end_at"`
+	Conclusion            string   `json:"conclusion"`
 }
 
 func (p PilotInput) ValidatePlan() error {
@@ -178,10 +192,20 @@ func (s *Service) SavePilot(ctx context.Context, u User, id string, in PilotInpu
 	if !manages(u, a) {
 		return ErrForbidden
 	}
+	if in.ExpectedAppealVersion < 1 {
+		return ErrVersionRequired
+	}
+	if in.ExpectedAppealVersion != a.Version {
+		return &VersionConflict{CurrentVersion: a.Version}
+	}
+	if a.Kind == "praise" {
+		return ErrInvalidTransition
+	}
 	if a.Status == "closed" || a.Status == "rejected" || a.Status == "resolved" {
 		return errors.New("Создавать и менять пилот можно в открытом обращении")
 	}
 	var action string
+	nextStatus := a.Status
 	if in.Action == "create" {
 		if err = in.ValidatePlan(); err != nil {
 			return err
@@ -227,9 +251,7 @@ func (s *Service) SavePilot(ctx context.Context, u User, id string, in PilotInpu
 				return ErrConflict
 			}
 			_, err = tx.Exec(ctx, `UPDATE pilot_experiments SET state='running',started_at=now(),version=version+1 WHERE id=$1`, in.ID)
-			if err == nil {
-				_, err = tx.Exec(ctx, `UPDATE appeals SET status='progress',updated_at=now() WHERE id=$1`, id)
-			}
+			nextStatus = "progress"
 			action = "Пилот запущен → progress. Метрика: " + metric
 		case "finish":
 			if state != "running" {
@@ -252,6 +274,9 @@ func (s *Service) SavePilot(ctx context.Context, u User, id string, in PilotInpu
 		return err
 	}
 	eventType := map[string]string{"create": "pilot_planned", "save": "pilot_updated", "start": "pilot_started", "finish": "pilot_evaluated"}[in.Action]
+	if _, err = tx.Exec(ctx, `UPDATE appeals SET status=$2,updated_at=now() WHERE id=$1`, id, nextStatus); err != nil {
+		return err
+	}
 	if err = recordFeature(ctx, tx, id, u, a, action, eventType); err != nil {
 		return err
 	}

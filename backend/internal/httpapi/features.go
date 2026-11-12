@@ -42,18 +42,29 @@ func (a *API) features(c *fiber.Ctx) error {
 	ctx, cancel := service.Context()
 	defer cancel()
 	id := c.Params("id")
-	if _, err := a.Svc.Get(ctx, user(c).ID, id); err != nil {
+	tx, err := a.Svc.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
 		return featureError(c, err)
 	}
-	impacts, err := a.maps(ctx, `SELECT people,minutes,occurrences_month,hourly_rate,round((people*minutes*occurrences_month/60)::numeric,2)::float8 AS hours_month,round((people*minutes*occurrences_month/60*hourly_rate)::numeric,2)::float8 AS cost_month,updated_at FROM appeal_impact WHERE appeal_id=$1`, id)
+	defer tx.Rollback(ctx)
+	var version int
+	var status, kind, author, assignee string
+	if err = tx.QueryRow(ctx, `SELECT version,status,kind,author_id,coalesce(assignee_id,'') FROM appeals WHERE id=$1`, id).Scan(&version, &status, &kind, &author, &assignee); err != nil {
+		return featureError(c, err)
+	}
+	u := user(c)
+	active := status != "resolved" && status != "closed" && status != "rejected"
+	manager := u.Role == "admin" || u.Role == "executor" && u.ID == assignee
+	permissions := fiber.Map{"can_assess": kind != "praise" && active && (manager || u.ID == author && (status == "new" || status == "waiting")), "can_pilot": kind != "praise" && active && manager}
+	impacts, err := mapsFrom(ctx, tx, `SELECT people,minutes,occurrences_month,hourly_rate,round((people*minutes*occurrences_month/60)::numeric,2)::float8 AS hours_month,round((people*minutes*occurrences_month/60*hourly_rate)::numeric,2)::float8 AS cost_month,updated_at FROM appeal_impact WHERE appeal_id=$1`, id)
 	if err != nil {
 		return err
 	}
-	pilots, err := a.maps(ctx, `SELECT p.id,p.hypothesis,p.scope,p.metric,p.unit,p.baseline,p.target,p.actual,p.direction,p.owner_id,u.name AS owner,to_char(p.end_at,'YYYY-MM-DD') AS end_at,p.state,p.conclusion,p.version,p.created_at,p.started_at,p.evaluated_at,CASE WHEN p.actual IS NULL THEN NULL ELSE CASE WHEN p.direction='decrease' THEN p.actual<=p.target ELSE p.actual>=p.target END END AS goal_met FROM pilot_experiments p JOIN users u ON u.id=p.owner_id WHERE appeal_id=$1 ORDER BY p.id DESC LIMIT 20`, id)
+	pilots, err := mapsFrom(ctx, tx, `SELECT p.id,p.hypothesis,p.scope,p.metric,p.unit,p.baseline,p.target,p.actual,p.direction,p.owner_id,u.name AS owner,to_char(p.end_at,'YYYY-MM-DD') AS end_at,p.state,p.conclusion,p.version,p.created_at,p.started_at,p.evaluated_at,CASE WHEN p.actual IS NULL THEN NULL ELSE CASE WHEN p.direction='decrease' THEN p.actual<=p.target ELSE p.actual>=p.target END END AS goal_met FROM pilot_experiments p JOIN users u ON u.id=p.owner_id WHERE appeal_id=$1 ORDER BY p.id DESC LIMIT 20`, id)
 	if err != nil {
 		return err
 	}
-	recurrences, err := a.maps(ctx, `SELECT r.id,r.reason,r.previous_result,r.previous_effect,r.previous_confirmed_at,r.created_at,u.name AS author FROM appeal_recurrences r JOIN users u ON u.id=r.author_id WHERE appeal_id=$1 ORDER BY r.id DESC LIMIT 30`, id)
+	recurrences, err := mapsFrom(ctx, tx, `SELECT r.id,r.reason,r.previous_result,r.previous_effect,r.previous_confirmed_at,r.created_at,u.name AS author FROM appeal_recurrences r JOIN users u ON u.id=r.author_id WHERE appeal_id=$1 ORDER BY r.id DESC LIMIT 30`, id)
 	if err != nil {
 		return err
 	}
@@ -61,7 +72,10 @@ func (a *API) features(c *fiber.Ctx) error {
 	if len(impacts) > 0 {
 		impact = impacts[0]
 	}
-	return c.JSON(fiber.Map{"impact": impact, "pilots": pilots, "recurrences": recurrences})
+	if err = tx.Commit(ctx); err != nil {
+		return featureError(c, err)
+	}
+	return c.JSON(fiber.Map{"appeal_version": version, "permissions": permissions, "impact": impact, "pilots": pilots, "recurrences": recurrences})
 }
 func (a *API) saveImpact(c *fiber.Ctx) error {
 	var in service.ImpactInput

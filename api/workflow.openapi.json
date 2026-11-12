@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Dauys workflow API",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "description": "Versioned appeal updates and structured audit history. All omitted PATCH fields are preserved. Legacy history is not reconstructed. Cookies and role checks are mandatory. Other existing API modules are documented separately."
   },
   "servers": [
@@ -226,6 +226,496 @@
                   },
                   "required": [
                     "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Actor cannot perform this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict or disallowed transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Missing expected_version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/appeals/{id}/features": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getBusinessFeatures",
+        "description": "One repeatable-read snapshot. appeal_version belongs to the same state as impact, pilots and permissions.",
+        "responses": {
+          "200": {
+            "description": "Saved estimates, pilots and recurrence history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessFeatures"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Actor cannot perform this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict or disallowed transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Missing expected_version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/appeals/{id}/impact": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "saveImpact",
+        "description": "Full monthly estimate; expected_appeal_version is mandatory. Increments the appeal revision. Zero hourly_rate means unknown financial value; estimates never add confirmed savings.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImpactCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estimate saved; refresh the feature snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Actor cannot perform this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict or disallowed transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Missing expected_version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/appeals/{id}/pilots": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "savePilot",
+        "description": "Assigned executor or administrator only. Every command needs expected_appeal_version; save/start/finish also need the pilot version. One active pilot per appeal. Running baselines are immutable. Actual measurement is required to finish.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PilotCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pilot action committed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Actor cannot perform this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict or disallowed transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Missing expected_version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/appeals/similar": {
+      "get": {
+        "operationId": "findSimilarAppeals",
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 12000
+            }
+          },
+          {
+            "name": "exclude",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Heuristic thematic matches from stored appeals; score is not a measured probability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SimilarAppeal"
+                      }
+                    },
+                    "method": {
+                      "const": "local_concepts"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "method"
                   ]
                 }
               }
@@ -865,6 +1355,540 @@
           "reason"
         ],
         "additionalProperties": false
+      },
+      "ImpactCommand": {
+        "type": "object",
+        "properties": {
+          "people": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "minutes": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "occurrences_month": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "hourly_rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "expected_appeal_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "people",
+          "minutes",
+          "occurrences_month",
+          "hourly_rate",
+          "expected_appeal_version"
+        ]
+      },
+      "SavedImpact": {
+        "type": "object",
+        "properties": {
+          "people": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "minutes": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "occurrences_month": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "hourly_rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "hours_month": {
+            "type": "number"
+          },
+          "cost_month": {
+            "type": "number"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "people",
+          "minutes",
+          "occurrences_month",
+          "hourly_rate",
+          "hours_month",
+          "cost_month",
+          "updated_at"
+        ]
+      },
+      "Pilot": {
+        "type": "object",
+        "properties": {
+          "hypothesis": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 3000
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "metric": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "baseline": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "target": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "decrease",
+              "increase"
+            ]
+          },
+          "owner_id": {
+            "type": "string"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "running",
+              "evaluated"
+            ]
+          },
+          "actual": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "conclusion": {
+            "type": "string"
+          },
+          "goal_met": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "owner": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "hypothesis",
+          "scope",
+          "metric",
+          "unit",
+          "baseline",
+          "target",
+          "direction",
+          "owner_id",
+          "end_at",
+          "id",
+          "version",
+          "state",
+          "actual",
+          "conclusion",
+          "goal_met",
+          "owner"
+        ]
+      },
+      "PilotCommand": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "create"
+              },
+              "expected_appeal_version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "hypothesis": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 3000
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 500
+              },
+              "metric": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              },
+              "baseline": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000000
+              },
+              "target": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000000
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "decrease",
+                  "increase"
+                ]
+              },
+              "owner_id": {
+                "type": "string"
+              },
+              "end_at": {
+                "type": "string",
+                "format": "date"
+              }
+            },
+            "required": [
+              "action",
+              "expected_appeal_version",
+              "hypothesis",
+              "scope",
+              "metric",
+              "unit",
+              "baseline",
+              "target",
+              "direction",
+              "owner_id",
+              "end_at"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "save"
+              },
+              "expected_appeal_version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "hypothesis": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 3000
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 500
+              },
+              "metric": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              },
+              "baseline": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000000
+              },
+              "target": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000000
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "decrease",
+                  "increase"
+                ]
+              },
+              "owner_id": {
+                "type": "string"
+              },
+              "end_at": {
+                "type": "string",
+                "format": "date"
+              },
+              "id": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "action",
+              "expected_appeal_version",
+              "hypothesis",
+              "scope",
+              "metric",
+              "unit",
+              "baseline",
+              "target",
+              "direction",
+              "owner_id",
+              "end_at",
+              "id",
+              "version"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "start"
+              },
+              "expected_appeal_version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "id": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "action",
+              "expected_appeal_version",
+              "id",
+              "version"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "const": "finish"
+              },
+              "expected_appeal_version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "id": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "actual": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000000
+              },
+              "conclusion": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 3000
+              }
+            },
+            "required": [
+              "action",
+              "expected_appeal_version",
+              "id",
+              "version",
+              "actual",
+              "conclusion"
+            ]
+          }
+        ]
+      },
+      "BusinessFeatures": {
+        "type": "object",
+        "properties": {
+          "appeal_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "permissions": {
+            "type": "object",
+            "properties": {
+              "can_assess": {
+                "type": "boolean"
+              },
+              "can_pilot": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "can_assess",
+              "can_pilot"
+            ]
+          },
+          "impact": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SavedImpact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pilots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Pilot"
+            }
+          },
+          "recurrences": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "previous_result": {
+                  "type": "string"
+                },
+                "previous_effect": {
+                  "type": "integer"
+                },
+                "previous_confirmed_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "author": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "reason",
+                "previous_result",
+                "previous_effect",
+                "previous_confirmed_at",
+                "created_at",
+                "author"
+              ]
+            }
+          }
+        },
+        "required": [
+          "appeal_version",
+          "permissions",
+          "impact",
+          "pilots",
+          "recurrences"
+        ]
+      },
+      "SimilarAppeal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "review",
+              "progress",
+              "waiting",
+              "resolved",
+              "closed",
+              "rejected"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "method": {
+            "const": "local_concepts"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status",
+          "category",
+          "department",
+          "score",
+          "reasons",
+          "method"
+        ]
       }
     }
   }

@@ -4,13 +4,22 @@ import (
 	"context"
 	"dauys/internal/service"
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"time"
 )
 
 func timestamp(t time.Time) pgtype.Timestamptz { return pgtype.Timestamptz{Time: t, Valid: true} }
 func (a *API) maps(ctx context.Context, sql string, args ...any) ([]map[string]any, error) {
-	rows, err := a.Svc.Pool.Query(ctx, sql, args...)
+	return mapsFrom(ctx, a.Svc.Pool, sql, args...)
+}
+
+type querySource interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}
+
+func mapsFrom(ctx context.Context, source querySource, sql string, args ...any) ([]map[string]any, error) {
+	rows, err := source.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
 	}
