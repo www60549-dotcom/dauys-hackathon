@@ -58,3 +58,6 @@ button:disabled {cursor:not-allowed}
 .appeal-conflict td>div {max-height:160px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:1000px){.server-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.employee-header{flex-wrap:wrap}.workspace-tabs{order:3;flex-basis:100%;overflow-x:auto;max-width:100%}}
 @media(max-width:600px){.server-filters{align-items:stretch;gap:10px}.server-filters>*{width:100%}.server-panel{padding:18px}.server-metrics{gap:10px}.server-metric{padding:16px}.server-upload,.server-routing-row{align-items:stretch;flex-direction:column}.server-heatmap{min-width:430px}.server-list-actions>*{max-width:100%}.server-pagination .button{padding:10px}.server-metrics+.server-panel .monthly-bar-canvas{height:260px}}
+.sla-panel{padding:18px;border:1px solid #cbd5e1;border-radius:16px;background:#f8fafc}.sla-panel p{margin:8px 0;font-size:14px;color:#334155}.sla-panel small{display:block;margin-top:12px;font-size:13px;color:#475569}
+
+.detail-result.is-rejected{color:#7f1d1d;background:#fff1f2;border-color:#fecdd3}.detail-result.is-rejected h3{color:#881337}.detail-result.is-rejected p{color:#7f1d1d;font-size:14px;line-height:1.65}

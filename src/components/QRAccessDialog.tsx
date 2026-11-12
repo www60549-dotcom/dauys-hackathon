@@ -5,8 +5,10 @@ import {categories} from './CategoryCard';
 import {buildComposeUrl} from '../lib/innovation';
 import {qrPath} from '../lib/qr';
 
-export function QRAccessDialog({open, onClose}: {open: boolean; onClose: () => void}) {
-  const [base, setBase] = useState(() => `${location.origin}${location.pathname}`);
+export function QRAccessDialog({open, onClose, publicBase}: {open: boolean; onClose: () => void; publicBase?:string}) {
+  const [base, setBase] = useState(() => publicBase || `${location.origin}${location.pathname}`);
+  const [editedBase,setEditedBase]=useState(false);
+  useEffect(()=>{if(open && publicBase && !editedBase)setBase(publicBase);},[open,publicBase,editedBase]);
   const [categoryId, setCategoryId] = useState('');
   const [qr, setQR] = useState<{path: string; viewBox: string} | null>(null);
   const [error, setError] = useState('');
@@ -33,13 +35,13 @@ export function QRAccessDialog({open, onClose}: {open: boolean; onClose: () => v
           <li><span>1</span><div><strong>Отсканируйте камерой</strong><p>Откройте ссылку из QR-кода на телефоне.</p></div></li>
           <li><span>2</span><div><strong>Отправьте тестовый тикет</strong><p>Опишите идею или проблему в короткой форме.</p></div></li>
           <li><span>3</span><div><strong>Проверьте карточку и статус</strong><p>Созданное обращение появится на вашем устройстве.</p></div></li>
-        </ol><p className="jury-sync-note">В этом MVP данные сохраняются в браузере устройства. Появление на общем 3D-экране в реальном времени потребует подключения сервера.</p></div>
+        </ol><p className="jury-sync-note">Войдите в учётную запись сотрудника. Обращения сохраняются в общей базе; карточки и уведомления обновляются через сервер. Для локального демо подключите телефон и компьютер к одной сети.</p></div>
       </div>
       {local && <p className="qr-local-hint"><strong>Для телефона нужен доступный адрес.</strong> Сейчас в коде localhost — он открывается только на этом компьютере. Укажите сетевой адрес запущенного приложения или адрес после публикации в настройках ниже.</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
       {url && <div className="qr-actions"><button className="button qr-copy" onClick={() => { if (!navigator.clipboard) { setError('Копирование недоступно. Выделите ссылку вручную.'); return; } navigator.clipboard.writeText(url).then(() => setCopied(true)).catch(() => setError('Копирование недоступно. Выделите ссылку вручную.')); }}>{copied ? <Check size={17}/> : <Copy size={17}/>} {copied ? 'Скопировано' : 'Копировать ссылку'}</button><a className="button button-dark" href={url} target="_blank" rel="noopener noreferrer">Проверить форму <ExternalLink size={17}/></a></div>}
       <details className="qr-settings"><summary>Адрес приложения и направление</summary><div>
-        <label className="form-field">Адрес запущенного приложения<input type="url" maxLength={1500} value={base} onChange={event => setBase(event.target.value)} placeholder="https://dauys.example"/></label>
+        <label className="form-field">Адрес запущенного приложения<input type="url" maxLength={1500} value={base} onChange={event => {setEditedBase(true);setBase(event.target.value);}} placeholder="https://dauys.example"/></label>
         <label className="form-field">Предвыбранное направление<select value={categoryId} onChange={event => setCategoryId(event.target.value)}><option value="">Без предвыбора</option>{categories.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
         {url && <code className="qr-url">{url}</code>}
       </div></details>

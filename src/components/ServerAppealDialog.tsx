@@ -7,6 +7,7 @@ import {StatusBadge} from './StatusBadge';
 import {AppealConflict} from './AppealConflict';
 import {BusinessFeaturePanel} from './BusinessFeaturePanel';
 import {SimilarAppeals} from './SimilarAppeals';
+import {AppealSLA} from './AppealSLA';
 import {api, ApiError, request} from '../api/client';
 import {toAppeal} from '../api/adapters';
 import {statusLabels, type Status} from '../types';
@@ -68,6 +69,7 @@ export function ServerAppealDialog({id, detail, loading, error, user, meta, onCl
     {error && <p className="form-error" role="alert">{error.message} <button className="text-button" onClick={onRetry}>Повторить</button></p>}
     {item && detail && <div className="detail-body" aria-busy={busy}>
       <StatusBadge appeal={toAppeal(item)} pill/>
+      <AppealSLA id={item.id} userId={user.id} blocked={blocked || !!draft?.dirty} onRemind={()=>{if(!blocked && !draft?.dirty)void execute(()=>api.remind(item.id,item.version));}}/>
       <p className="detail-description">{item.description}</p>
       <div className="detail-people"><span>Автор: {item.author}</span><span>Ответственный: {item.assignee}</span><span>Срок: {formatDate(Date.parse(item.due_at))}</span></div>
       {versionReady ? <small className="history-author">Версия карточки: {item.version}</small> : <p className="form-error">Сервис обновляется. Обновите карточку перед изменением.</p>}

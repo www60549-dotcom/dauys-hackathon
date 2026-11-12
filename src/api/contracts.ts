@@ -3,6 +3,7 @@ export type Role = 'employee' | 'executor' | 'admin';
 export type Priority = 'low' | 'medium' | 'high' | 'critical';
 export interface SessionUser {id: string; name: string; email: string; role: Role; department: string}
 export interface ApiImpact {people: number; minutes: number; occurrences_month: number; hourly_rate: number}
+export interface SLA {response_due_at:string;resolution_due_at:string;first_response_at:string|null;last_escalation_at:string|null;next_reminder_at:string|null;response_overdue:boolean;resolution_overdue:boolean;waiting_for_author:boolean;can_remind:boolean;reason:string}
 export interface SavedImpact extends ApiImpact {hours_month: number; cost_month: number; updated_at: string}
 export interface PilotPlan {hypothesis: string; scope: string; metric: string; unit: string; baseline: number; target: number; direction: 'decrease' | 'increase'; owner_id: string; end_at: string}
 export interface Pilot extends PilotPlan {id: number; version: number; owner: string; state: 'planned' | 'running' | 'evaluated'; actual: number | null; conclusion: string; goal_met: boolean | null; created_at: string; started_at: string | null; evaluated_at: string | null}
@@ -22,7 +23,7 @@ export interface ApiHistory {id: number | string; action: string; created_at: st
 export interface ApiAttachment {id: string; name: string; size: number}
 export interface AppealDetail {appeal: ApiAppeal; comments: ApiComment[]; history: ApiHistory[]; files: ApiAttachment[]; linked: {id: string; title: string; affected: number}[]; allowed_transitions: Status[]; permissions: {can_edit: boolean; can_manage: boolean; can_comment: boolean}}
 export interface AppealPage {items: ApiAppeal[]; total: number; page: number; counts: {total: number; active: number; progress: number; waiting: number; resolved: number}}
-export interface Metadata {categories: {name: string; assignee_id: string}[]; executors: Pick<SessionUser, 'id' | 'name' | 'role' | 'department'>[]; departments?: string[]}
+export interface Metadata {public_url?:string; categories: {name: string; assignee_id: string}[]; executors: Pick<SessionUser, 'id' | 'name' | 'role' | 'department'>[]; departments?: string[]}
 export interface ApiNotification {id: number | string; appeal_id: string; body: string; read_at: string | null; created_at: string}
 export interface AppealFilters {q?: string; status?: Status | 'done' | 'active'; department?: string; kind?: Kind; mine?: string; assigned?: string; page?: number; sort?: string; overdue?: string}
 export interface CreateAppealInput {title: string; description: string; solution?: string; kind: Kind; category: string; department: string; priority: Priority; affected: number; expected_effect: number; impact?: ApiImpact}
@@ -30,8 +31,8 @@ export interface ManageAppealInput {expected_version: number; status: Status; pr
 export interface EditAppealInput {expected_version: number; title: string; description: string; solution: string}
 export interface UpdateAppealResult {ok: true; version: number}
 export interface Dashboard {
-  summary: {total: number; resolved: number; closed: number; waiting: number; overdue: number; confirmed_effect: number; expected_effect: number; average_days: number; first_response_hours: number | null; first_response_count: number; implemented: number};
-  trend: {week: number; total: number; resolved: number}[];
+  summary: {total: number; resolved: number; closed: number; waiting: number; overdue: number; confirmed_effect: number; expected_effect: number; average_days: number; first_response_hours: number | null; first_response_count: number; implemented: number; undated_legacy_resolutions: number};
+  trend: {month: string; total: number; resolved: number}[];
   departments: {department: string; total: number; resolved: number; critical: number; overdue: number}[];
   types: {kind: Kind; total: number}[];
   heatmap: {department: string; topic: string; score: number; total: number}[];

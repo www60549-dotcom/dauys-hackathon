@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Dauys workflow API",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "description": "Versioned appeal updates and structured audit history. All omitted PATCH fields are preserved. Legacy history is not reconstructed. Cookies and role checks are mandatory. Other existing API modules are documented separately."
   },
   "servers": [
@@ -800,6 +800,142 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/appeals/{id}/sla": {
+      "get": {
+        "summary": "Reply and resolution deadlines, actual first response and reminder eligibility",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server-clock eligibility and deadlines",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "response_due_at",
+                    "resolution_due_at",
+                    "can_remind",
+                    "waiting_for_author"
+                  ],
+                  "properties": {
+                    "response_due_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "resolution_due_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "first_response_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "last_escalation_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "next_reminder_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "can_remind": {
+                      "type": "boolean"
+                    },
+                    "waiting_for_author": {
+                      "type": "boolean"
+                    },
+                    "response_overdue": {
+                      "type": "boolean"
+                    },
+                    "resolution_overdue": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session required"
+          },
+          "404": {
+            "description": "Appeal not found"
+          }
+        }
+      }
+    },
+    "/appeals/{id}/remind": {
+      "post": {
+        "summary": "One durable escalation per appeal per 24 hours; author, assigned executor or admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "expected_version"
+                ],
+                "properties": {
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Escalation committed with history and notifications"
+          },
+          "400": {
+            "description": "Not overdue, waiting for author, or cooldown active"
+          },
+          "403": {
+            "description": "Not a participant"
+          },
+          "409": {
+            "description": "Revision conflict"
+          },
+          "428": {
+            "description": "Viewed revision required"
           }
         }
       }

@@ -9,8 +9,8 @@ import type {AppealDynamicsPoint} from '@/lib/appealDynamics';
 
 const countLabel = (value: number) => Number.isInteger(value) ? String(value) : '';
 
-export default function BklitAppealBarChart({points, average, peak}: {
-  points: Pick<AppealDynamicsPoint, 'month' | 'received' | 'withSolution'>[]; average: number; peak: number;
+export default function BklitAppealBarChart({points, average, peak, solutionLabel='Из них с решением'}: {
+  points: Pick<AppealDynamicsPoint, 'month' | 'received' | 'withSolution'>[]; average: number; peak: number; solutionLabel?:string;
 }) {
   return <div className="bklit-studio-chart appeal-bar-chart">
     <BarChart data={points} xDataKey="month" animationDuration={1100} aspectRatio="auto" className="monthly-bar-canvas" barWidth={points.length < 4 ? 38 : undefined}
@@ -30,7 +30,7 @@ export default function BklitAppealBarChart({points, average, peak}: {
       <BarXAxis />
       <ChartTooltip rows={point => [
         {label: 'Поступило', value: Number(point.received), color: 'var(--chart-1)'},
-        {label: 'Из них с решением', value: Number(point.withSolution), color: 'var(--chart-2)'},
+        {label: solutionLabel, value: Number(point.withSolution), color: 'var(--chart-2)'},
       ]} />
     </BarChart>
   </div>;

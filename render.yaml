@@ -1,0 +1,26 @@
+# Free hackathon demo only: PostgreSQL expires after 30 days, uploads are
+# ephemeral, and the free web service can sleep. Read docs/DEPLOYMENT.md.
+databases:
+ - name: dauys-demo-db
+   plan: free
+   databaseName: dauys
+   user: dauys
+   postgresMajorVersion: "17"
+services:
+ - type: web
+   name: dauys-demo-api
+   runtime: docker
+   plan: free
+   dockerfilePath: ./Dockerfile
+   healthCheckPath: /api/health
+   envVars:
+    - key: DATABASE_URL
+      fromDatabase: {name: dauys-demo-db, property: connectionString}
+    - key: DEMO_MODE
+      value: "true"
+    - key: DEMO_PASSWORD
+      generateValue: true
+    - key: COOKIE_SECURE
+      value: "true"
+    - key: APP_ORIGINS
+      sync: false

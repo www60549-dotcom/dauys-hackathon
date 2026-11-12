@@ -31,7 +31,11 @@ func seed(ctx context.Context, pool *pgxpool.Pool) error {
 	if count > 0 {
 		return tx.Commit(ctx)
 	}
-	password, err := bcrypt.GenerateFromPassword([]byte("DauysDemo2026!"), 12)
+	demoPassword := os.Getenv("DEMO_PASSWORD")
+	if demoPassword == "" {
+		demoPassword = "DauysDemo2026!"
+	}
+	password, err := bcrypt.GenerateFromPassword([]byte(demoPassword), 12)
 	if err != nil {
 		return err
 	}

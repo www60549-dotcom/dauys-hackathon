@@ -28,7 +28,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	for _, migration := range []struct {
 		version int
 		path    string
-	}{{1, "schema.sql"}, {2, "migrations/002.sql"}, {3, "migrations/003_workflow.sql"}} {
+	}{{1, "schema.sql"}, {2, "migrations/002.sql"}, {3, "migrations/003_workflow.sql"}, {4, "migrations/004_sla.sql"}} {
 		var exists bool
 		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=$1)`, migration.version).Scan(&exists); err != nil {
 			return err

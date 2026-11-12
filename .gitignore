@@ -12,3 +12,6 @@ data/
 coverage/
 playwright-report/
 test-results/
+.vercel/
+output/
+.playwright/

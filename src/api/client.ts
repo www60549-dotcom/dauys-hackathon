@@ -1,5 +1,5 @@
 import type {ApiNotification, AppealDetail, AppealFilters, AppealPage, CreateAppealInput, Dashboard, EditAppealInput, ManageAppealInput, Metadata, SessionUser, UpdateAppealResult} from './contracts';
-import type {ApiImpact, BusinessFeatures, PilotCommand, SimilarAppeal} from './contracts';
+import type {ApiImpact, BusinessFeatures, PilotCommand, SimilarAppeal, SLA} from './contracts';
 export const SESSION_EXPIRED = 'dauys:session-expired';
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number, public readonly code?: string, public readonly currentVersion?: number) {super(message); this.name = 'ApiError';}
@@ -57,6 +57,8 @@ export const api = {
     return data;
   },
   saveImpact: (id: string, body: ApiImpact & {expected_appeal_version: number}) => request<{ok: true}>(`/appeals/${encodeURIComponent(id)}/impact`,{method:'PATCH',body}),
+  sla: (id:string,signal?:AbortSignal)=>request<SLA>(`/appeals/${encodeURIComponent(id)}/sla`,{signal}),
+  remind: (id:string,expectedVersion:number)=>request<{ok:true}>(`/appeals/${encodeURIComponent(id)}/remind`,{method:'POST',body:{expected_version:expectedVersion}}),
   savePilot: (id: string, body: PilotCommand) => request<{ok: true}>(`/appeals/${encodeURIComponent(id)}/pilots`,{method:'POST',body}),
   similar: (text: string, exclude?: string, signal?: AbortSignal) => request<{items: SimilarAppeal[]; method: string; note?: string}>(`/appeals/similar${queryString({text,exclude})}`,{signal}),
   dashboard: (filters: {month?: string; department?: string}, signal?: AbortSignal) => request<Dashboard>(`/analytics${queryString(filters)}`, {signal}),

@@ -103,6 +103,8 @@ func (a *API) App() *fiber.App {
 	app.Patch("/api/appeals/:id/impact", a.saveImpact)
 	app.Post("/api/appeals/:id/pilots", a.savePilot)
 	app.Post("/api/appeals/:id/reopen", a.reopen)
+	app.Get("/api/appeals/:id/sla", a.sla)
+	app.Post("/api/appeals/:id/remind", a.remind)
 	app.Get("/api/appeals/:id", a.detail)
 	app.Patch("/api/appeals/:id", a.update)
 	app.Post("/api/appeals/:id/comments", a.comment)
@@ -114,6 +116,16 @@ func (a *API) App() *fiber.App {
 	app.Post("/api/notifications/read", a.readNotifications)
 	app.Get("/api/events", a.events)
 	app.Patch("/api/admin/categories", a.category)
+	app.Use("/api", func(c *fiber.Ctx) error { return fail(c, 404, "API-маршрут не найден") })
+	if dir := os.Getenv("DIST_DIR"); dir != "" {
+		app.Static("/", dir, fiber.Static{Index: "index.html", MaxAge: 0})
+		app.Get("*", func(c *fiber.Ctx) error {
+			if filepath.Ext(c.Path()) != "" {
+				return c.SendStatus(404)
+			}
+			return c.SendFile(filepath.Join(dir, "index.html"))
+		})
+	}
 	return app
 }
 func (a *API) login(c *fiber.Ctx) error {
@@ -145,7 +157,7 @@ func (a *API) meta(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(fiber.Map{"categories": cats, "executors": users, "departments": []string{"Закупки", "Проектирование", "Монтаж и сервис", "Бухгалтерия", "Продажи", "IT", "Офис"}})
+	return c.JSON(fiber.Map{"categories": cats, "executors": users, "public_url": os.Getenv("APP_PUBLIC_URL"), "departments": []string{"Закупки", "Проектирование", "Монтаж и сервис", "Бухгалтерия", "Продажи", "IT", "Офис"}})
 }
 func (a *API) list(c *fiber.Ctx) error {
 	ctx, cancel := service.Context()
@@ -346,7 +358,7 @@ func (a *API) events(c *fiber.Ctx) error {
 		for time.Now().Before(deadline) {
 			ctx, cancel := service.Context()
 			var revision string
-			err := a.Svc.Pool.QueryRow(ctx, `SELECT coalesce(max(id),0)::text||':'||(SELECT count(*) FROM notifications WHERE user_id=$1 AND read_at IS NULL)::text FROM notifications WHERE user_id=$1 AND EXISTS(SELECT 1 FROM sessions WHERE token_hash=$2 AND expires_at>now())`, uid, tokenHash).Scan(&revision)
+			err := a.Svc.Pool.QueryRow(ctx, `SELECT coalesce(max(id),0)::text||':'||(SELECT count(*) FROM notifications WHERE user_id=$1 AND read_at IS NULL)::text||':'||(SELECT revision::text FROM workspace_revision) FROM notifications WHERE user_id=$1 AND EXISTS(SELECT 1 FROM sessions WHERE token_hash=$2 AND expires_at>now())`, uid, tokenHash).Scan(&revision)
 			var valid bool
 			sessionErr := a.Svc.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM sessions WHERE token_hash=$1 AND expires_at>now())`, tokenHash).Scan(&valid)
 			cancel()

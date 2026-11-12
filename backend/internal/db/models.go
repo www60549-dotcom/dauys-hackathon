@@ -30,6 +30,15 @@ type Appeal struct {
 	UpdatedAt      pgtype.Timestamptz
 	ConfirmedAt    pgtype.Timestamptz
 	Version        int32
+	ResponseDueAt  pgtype.Timestamptz
+}
+
+type AppealEscalation struct {
+	ID        int64
+	AppealID  string
+	ActorID   string
+	Reason    string
+	CreatedAt pgtype.Timestamptz
 }
 
 type AppealImpact struct {
@@ -134,4 +143,9 @@ type User struct {
 type Vote struct {
 	AppealID string
 	UserID   string
+}
+
+type WorkspaceRevision struct {
+	Singleton bool
+	Revision  int64
 }

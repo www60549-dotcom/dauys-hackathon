@@ -68,7 +68,9 @@ check((await get('/notifications',executor)).some(n=>n.appeal_id===appeal),'new 
 detail=await get(path);
 await request(path,{cookie:executor,method:'PATCH',body:{...detail.appeal,status:'waiting'}});
 await request(path+'/comments',{cookie:executor,method:'POST',status:201,body:{body:'Пришлите пример двух версий инструкции для проверки.'}});
+const responseCountBeforeAuthor=(await get('/analytics')).summary.first_response_count;
 await request(path+'/comments',{cookie:employee,method:'POST',status:201,body:{body:'Пример уточнён: инструкция находится в двух общих папках.'}});
+const responseCountAfterAuthor=(await get('/analytics')).summary.first_response_count;
 detail=await get(path);
 check(detail.appeal.status==='waiting'&&detail.comments.length===2&&detail.history.some(h=>h.event_type==='status_changed'&&h.to_status==='waiting'&&h.from_status==='review'),'clarification, author response and status history persist');
 await request(path,{cookie:executor,method:'PATCH',body:{...detail.appeal,status:'resolved',result:'Закреплена актуальная инструкция; старые версии перенесены в архив.',actual_effect:0}});
@@ -114,6 +116,6 @@ const typed=await get('/appeals?kind=praise&q='+marker);
 check(typed.items.length===1&&typed.items[0].id===praise&&typed.counts.total===1,'type filter returns praise with matching counters');
 const final=await get('/analytics');
 check(final.summary.closed===initial.summary.closed+2,'closed analytics includes confirmed solution and processed praise');
-check(final.summary.first_response_count===initial.summary.first_response_count+1,'author comment does not add another first-response sample');
+check(responseCountBeforeAuthor===responseCountAfterAuthor && final.summary.first_response_count===initial.summary.first_response_count+4,'staff workflow responses count, author comment never adds a sample');
 for(const cookie of [employee,executor,admin])await request('/logout',{cookie,method:'POST',status:204});
 console.log(JSON.stringify({checks,status:'PASS',scope:'dataset scenarios and gaps',demo_appeal:appeal,refusal:rejected,praise,overdue},null,2));

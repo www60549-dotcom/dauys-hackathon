@@ -3,6 +3,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useSearchParams} from 'react-router-dom';
 import {AnimatePresence, motion, useReducedMotion} from 'framer-motion';
 import {Check, Plus} from 'lucide-react';
+import {ModuleBoundary} from './ModuleBoundary';
 import {api} from '../api/client';
 import {toAppeal, toNotification} from '../api/adapters';
 import type {AppealFilters, SessionUser} from '../api/contracts';
@@ -69,7 +70,7 @@ export default function ConnectedWorkspace({pointer, user, onLogout}: {pointer: 
             <div className="server-list-actions"><PrimaryButton icon={Plus} onClick={() => startCreate(view === 'improvements' ? 'idea' : 'problem')}>{view === 'improvements' ? 'Предложить улучшение' : 'Создать обращение'}</PrimaryButton>{view === 'appeals' && <label className="form-field">Показать<select value={params.get('scope') || 'mine'} onChange={event => changeParams({scope: event.target.value, page: undefined}, true)}><option value="mine">Мои обращения</option><option value="all">Все обращения компании</option></select></label>}</div>
             <ServerAppealList data={list.data} loading={list.isFetching} error={list.error} title={view === 'assigned' ? 'Назначенные мне' : view === 'improvements' ? 'Решения и улучшения' : params.get('scope') === 'all' ? 'Обращения компании' : 'Мои обращения'} query={query} status={params.get('status') || ''} kind={params.get('kind') || ''} onFilter={(key, value) => changeParams({[key]: value, page: undefined}, true)} onOpen={open} onPage={page => changeParams({page: String(page)})} onRetry={() => {void list.refetch();}}/>
           </>}
-          {view === 'analytics' && <Suspense fallback={<p className="workspace-loading">Загружаем аналитику…</p>}><Analytics userId={user.id} departments={meta.data?.departments ?? []} onOpen={open}/></Suspense>}
+          {view === 'analytics' && <ModuleBoundary><Suspense fallback={<p className="workspace-loading">Загружаем аналитику…</p>}><Analytics userId={user.id} departments={meta.data?.departments ?? []} onOpen={open}/></Suspense></ModuleBoundary>}
           {view === 'admin' && user.role === 'admin' && <ServerAdminSettings meta={meta.data} onChanged={refresh}/>}
           {view === 'help' && <HelpPage onCreate={() => startCreate()}/>}
         </motion.div></AnimatePresence>
@@ -77,7 +78,7 @@ export default function ConnectedWorkspace({pointer, user, onLogout}: {pointer: 
     </div>
     <ServerCreateDialog open={creating} kind={kind} context={context} meta={meta.data} user={user} onClose={closeCreate} onCreated={id => {changeParams({compose: undefined, category: undefined, department: undefined, appeal: id, tab: 'appeals'}); setToast('Обращение зарегистрировано.'); void refresh();}}/>
     <ServerAppealDialog id={selectedId} detail={detail.data} loading={detail.isPending} error={detail.error} user={user} meta={meta.data} onClose={() => changeParams({appeal: undefined})} onChanged={refresh} onRetry={() => {void detail.refetch();}}/>
-    <QRAccessDialog open={qrOpen} onClose={() => setQROpen(false)}/>
+    <QRAccessDialog publicBase={meta.data?.public_url} open={qrOpen} onClose={() => setQROpen(false)}/>
     <Dialog open={settingsOpen} title="Настройки" onClose={() => setSettingsOpen(false)}><div className="workspace-settings"><p><strong>{user.name}</strong><span>{user.department} · {user.email}</span></p><label className="motion-preference"><input type="checkbox" checked={!motionPaused && !reduced} disabled={reduced} onChange={event => setMotionPaused(!event.target.checked)}/><span>Движение 3D</span></label></div></Dialog>
     <AnimatePresence>{toast && <motion.div className="toast" role="status" initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} exit={{opacity: 0}}><Check size={17}/>{toast}</motion.div>}</AnimatePresence>
   </div>;
