@@ -22,7 +22,8 @@ if ($DatabaseUrl -match '@127\.0\.0\.1:55432/' -and $RuntimePath -and (Test-Path
     if (-not (Test-Path -LiteralPath (Join-Path $dauysPgData 'PG_VERSION'))) { throw 'Prepared PostgreSQL cluster not found. Configure DATABASE_URL for your server.' }
     Start-Process -FilePath (Join-Path $dauysPgBin 'postgres.exe') -ArgumentList @('-D', ('"' + $dauysPgData + '"'), '-h', '127.0.0.1', '-p', '55432', '-c', 'max_connections=40', '-c', 'shared_buffers=64MB') -WindowStyle Hidden -RedirectStandardOutput (Join-Path $dauysData 'postgres-out.log') -RedirectStandardError (Join-Path $dauysData 'postgres-error.log') | Out-Null
     $dauysPgReady = $false
-    for ($dauysAttempt = 0; $dauysAttempt -lt 40; $dauysAttempt++) { & (Join-Path $dauysPgBin 'pg_isready.exe') -h 127.0.0.1 -p 55432 *> $null; if ($LASTEXITCODE -eq 0) { $dauysPgReady = $true; break }; Start-Sleep -Milliseconds 250 }
+    # Recovery after an interrupted Windows session may take longer than ten seconds.
+    for ($dauysAttempt = 0; $dauysAttempt -lt 240; $dauysAttempt++) { & (Join-Path $dauysPgBin 'pg_isready.exe') -h 127.0.0.1 -p 55432 *> $null; if ($LASTEXITCODE -eq 0) { $dauysPgReady = $true; break }; Start-Sleep -Milliseconds 250 }
     if (-not $dauysPgReady) { throw 'PostgreSQL did not start. See data/postgres-error.log.' }
   }
 }
@@ -36,12 +37,16 @@ $env:COOKIE_SECURE = 'false'
 $env:HOST = '127.0.0.1'
 $env:PORT = '8080'
 $env:UPLOAD_DIR = Join-Path $dauysData 'uploads'
-$env:APP_ORIGINS = 'http://127.0.0.1:5175,http://localhost:5175'
+$env:DIST_DIR = Join-Path $PSScriptRoot 'dist'
+$env:APP_PUBLIC_URL = ''
+$env:APP_ORIGINS = 'http://127.0.0.1:5175,http://localhost:5175,http://127.0.0.1:8080,http://localhost:8080'
 $dauysWebHost = '127.0.0.1'
 if ($Lan) {
   $dauysWebHost = '0.0.0.0'
-  $dauysLanIPs = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -match '^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)' }
-  foreach ($dauysIP in $dauysLanIPs) { $env:APP_ORIGINS += ',http://' + $dauysIP.IPAddress + ':5175' }
+  $env:HOST = '0.0.0.0'
+  $dauysLanIPs = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -match '^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)' -and $_.InterfaceAlias -notmatch 'vEthernet|WSL|Docker' })
+  foreach ($dauysIP in $dauysLanIPs) { $env:APP_ORIGINS += ',http://' + $dauysIP.IPAddress + ':5175,http://' + $dauysIP.IPAddress + ':8080' }
+  if ($dauysLanIPs.Count) { $env:APP_PUBLIC_URL = 'http://' + $dauysLanIPs[0].IPAddress + ':8080' }
 }
 $dauysProcesses = @()
 try {

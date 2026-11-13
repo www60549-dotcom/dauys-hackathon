@@ -7,6 +7,7 @@
 
 **Для жюри:** [обзор продукта и сценарий проверки](docs/JURY.md) ·
 [запуск и деплой](docs/DEPLOYMENT.md) · [отчёт о проверках](docs/VERIFICATION-RELEASE.md).
+[Готовность к сдаче и найденные исправления](docs/SUBMISSION-CHECK.md).
 
 ![Главная страница Dauys](docs/images/dauys-home.png)
 
@@ -66,7 +67,9 @@ executor@dauys.local, admin@dauys.local; пароль `DauysDemo2026!`.
 
 Полный production-переход ещё не завершён: идемпотентность создания и голосования,
 корпоративная иерархия эскалации и расширенная аналитика,
-постоянный общий Canvas, Docker/TLS/backup и окончательный браузерный E2E.
+постоянный общий Canvas, корпоративный bootstrap, TLS и эксплуатационный мониторинг.
+Docker/Compose, backup/restore и основной браузерный E2E проверены; публичный
+Vercel + Render стенд ещё ожидает доступа к backend-хостингу.
 
 ## Проверки
 
