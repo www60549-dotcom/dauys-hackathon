@@ -8,11 +8,71 @@
 **Для жюри:** [обзор продукта и сценарий проверки](docs/JURY.md) ·
 [запуск и деплой](docs/DEPLOYMENT.md) · [отчёт о проверках](docs/VERIFICATION-RELEASE.md).
 [Готовность к сдаче и найденные исправления](docs/SUBMISSION-CHECK.md).
+[Функции текущего сайта](docs/FEATURES.md) · [проверка перед публикацией](docs/PUBLICATION-AUDIT.md).
 
 ![Главная страница Dauys](docs/images/dauys-home.png)
 
 Система обращений сотрудников ГК «Модус Трейд». Основная папка проекта — текущая.
 React/TypeScript/Vite находятся в корне, Go/Fiber/pgx/sqlc — в backend/.
+
+## Установка на другом компьютере
+
+Для воспроизводимого запуска нужен Docker Engine с Docker Compose v2.
+Образы сами устанавливают Node/Go-зависимости; локальные node_modules и настройки
+автора в репозиторий не входят.
+
+```powershell
+git clone https://github.com/www60549-dotcom/dauys-hackathon.git
+cd dauys-hackathon
+Copy-Item .env.example .env
+```
+
+В локальном `.env` задайте собственные POSTGRES_PASSWORD и DEMO_PASSWORD.
+Для пароля PostgreSQL используйте случайную строку из 32 шестнадцатеричных символов.
+Для новой демонстрационной БД оставьте DEMO_MODE=true; сервер создаст три роли
+и 20 синтетических обращений. Затем:
+
+```powershell
+docker compose up -d --build
+docker compose logs --tail=50 api
+```
+
+Откройте http://127.0.0.1:8088. Вход: employee@dauys.local,
+executor@dauys.local или admin@dauys.local; пароль — выбранный DEMO_PASSWORD.
+Изменение переменной после первого seed не меняет уже созданные пароли.
+`docker compose down` останавливает стенд, сохраняя данные в volumes.
+
+Для запуска без Docker нужны Node 22.12+, Go 1.24+ и PostgreSQL 17: выполните
+`npm ci`, передайте DATABASE_URL в окружении или параметр `-DatabaseUrl`
+скрипту ниже; Go должен быть доступен в PATH. На новой демо-БД задайте
+DEMO_PASSWORD до запуска. Подробности: [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## Переменные окружения и секреты
+
+Безопасный шаблон: [.env.example](.env.example). Реальные значения сохраняются
+в игнорируемом `.env` или в настройках окружения хостинга.
+
+| Переменные | Назначение |
+| --- | --- |
+| POSTGRES_PASSWORD | Пароль PostgreSQL в Compose; обязательный локальный секрет. |
+| DEMO_MODE, DEMO_PASSWORD | Заполнение только новой демо-БД и выбранный пароль демо-ролей. |
+| DATABASE_URL | Прямое подключение Go к БД; в Compose формируется автоматически. |
+| HOST, PORT | Адрес и порт Go API; в контейнере HOST=0.0.0.0. |
+| COOKIE_SECURE, APP_ORIGINS | HTTPS-cookie и точные разрешённые origin для изменений. |
+| UPLOAD_DIR, DIST_DIR | Хранилище вложений и каталог собранного React-интерфейса. |
+| APP_PUBLIC_URL | Доступный пользователям адрес сайта для QR-ссылок. |
+| WEB_BIND, WEB_PORT | Внешний интерфейс и порт Nginx в Compose. |
+| DAUYS_API_TARGET | Необязательный адрес Go API для Vite proxy. |
+| DAUYS_RUNTIME_DIR | Необязательный локальный путь к подготовленным Go/PostgreSQL tools. |
+| PUBLIC_API_ORIGIN | Публичный backend origin для подготовки Vercel-конфигурации. |
+
+Compose читает `.env` самостоятельно. Go, start-local.ps1 и Vite proxy override
+получают переменные из окружения процесса: простое копирование файла их не экспортирует.
+Для HTTPS выставьте COOKIE_SECURE=true и реальные APP_ORIGINS/APP_PUBLIC_URL.
+Для существующей корпоративной БД используйте DEMO_MODE=false.
+Публичные тестовые пароли из seed, tests и CI запрещено повторно использовать
+в реальной среде. `VERCEL_OIDC_TOKEN` выдаёт Vercel CLI и хранит локально;
+его и ключи облачных провайдеров нельзя переносить в шаблон, VITE_* или Git.
 
 ## Локальный запуск на этом компьютере
 
@@ -34,9 +94,10 @@ React/TypeScript/Vite находятся в корне, Go/Fiber/pgx/sqlc — в
 Телефон открывает LAN-адрес компьютера, а не localhost/127.0.0.1.
 Доступ зависит от Wi-Fi и правил Windows Firewall; реальный телефон ещё не проверен.
 
-Для подготовленных демонстрационных данных: employee@dauys.local,
-executor@dauys.local, admin@dauys.local; пароль `DauysDemo2026!`.
-Это только локальный demo seed. В production DEMO_MODE должен быть отключён,
+Для подготовленных демонстрационных данных используются роли employee@dauys.local,
+executor@dauys.local, admin@dauys.local. Выбранный при первом seed пароль задаёт
+DEMO_PASSWORD; в исходниках также сохранён общедоступный локальный тестовый fallback.
+Это только demo seed. В production DEMO_MODE должен быть отключён,
 учётные записи создаются отдельной процедурой bootstrap.
 
 ## Что уже подключено

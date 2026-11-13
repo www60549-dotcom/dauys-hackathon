@@ -4,6 +4,8 @@ dist/
 *.log
 .env
 .env.*
+*.env
+*.env.*
 !.env.example
 backend/bin/
 /data/
@@ -15,3 +17,38 @@ test-results/
 .vercel/
 output/
 .playwright/
+
+# Local credentials and private key material (including nested folders).
+.envrc
+.envrc.*
+.npmrc
+.pypirc
+.netrc
+_netrc
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_ecdsa
+id_ed25519
+*.token
+*.secret
+*api-key*.txt
+*service-account*.json
+*service_role*.json
+/secrets/
+/credentials/
+
+# Database exports, local databases and file backups; migrations remain tracked.
+*.dump
+*.backup
+*.bak
+*.sql.gz
+*.sqlite
+*.sqlite3
+*.db
+/backups/
+/uploads/
