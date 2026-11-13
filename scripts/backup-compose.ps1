@@ -14,7 +14,7 @@ try {
  Invoke-DauysDocker @('compose','exec','-T','db','pg_dump','-U','dauys','-d','dauys','-Fc','-f','/tmp/dauys-backup.dump')
  Invoke-DauysDocker @('compose','cp','db:/tmp/dauys-backup.dump',(Join-Path $Destination 'database.dump'))
  # A one-off service container mounts the same named uploads volume.
- Invoke-DauysDocker @('compose','run','--rm','--no-deps','--volume',($Destination+':/backup'),'--entrypoint','tar','api','-C','/data','-czf','/backup/uploads.tar.gz','uploads')
+ Invoke-DauysDocker @('compose','run','--rm','--no-deps','--user','0:0','--volume',($Destination+':/backup'),'--entrypoint','tar','api','-C','/data','-czf','/backup/uploads.tar.gz','uploads')
  $dauysHashes=Get-ChildItem -LiteralPath $Destination -File|Get-FileHash -Algorithm SHA256|Select-Object @{Name='File';Expression={Split-Path $_.Path -Leaf}},Hash
  $dauysHashes|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $Destination 'sha256.json')
  Write-Output "Backup: $Destination"

@@ -16,7 +16,7 @@ export function ServerAnalytics({userId, departments, onOpen}: {userId: string; 
   const average = points.reduce((sum, point) => sum + point.received, 0) / Math.max(1, points.length);
   return <section className="analytics-page">
     <div className="workspace-page-heading"><div><h1>Аналитика и итоги</h1><p>Данные всех доступных обращений из общей базы.</p></div><div className="server-filters"><label className="form-field">Месяц<input type="month" value={month} onChange={event => setMonth(event.target.value)}/></label><select aria-label="Подразделение" value={department} onChange={event => setDepartment(event.target.value)}><option value="">Все подразделения</option>{departments.map(value => <option key={value}>{value}</option>)}</select></div></div>
-    <NavigationTabs id="server-analytics" label="Разделы аналитики" value={section} onChange={setSection} tabs={[{id: 'summary', label: 'Общая сводка'}, {id: 'problems', label: 'Проблемные зоны'}, {id: 'effect', label: 'Эффект и экономия'}]}/>
+    <NavigationTabs className="analytics-subtabs" id="server-analytics" label="Разделы аналитики" value={section} onChange={setSection} tabs={[{id: 'summary', label: 'Общая сводка'}, {id: 'problems', label: 'Проблемные зоны'}, {id: 'effect', label: 'Эффект и экономия'}]}/>
     {isPending && <p role="status" className="workspace-loading">Загружаем аналитику…</p>}{error && <p role="alert" className="form-error">{error.message} <button onClick={() => {void refetch();}}>Повторить</button></p>}
     {data && section === 'summary' && <><div className="server-metrics">{[
       {label: 'Поступило', value: data.summary.total}, {label: 'Решено за период', value: data.summary.resolved},

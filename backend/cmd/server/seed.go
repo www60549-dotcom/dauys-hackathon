@@ -71,7 +71,7 @@ func seed(ctx context.Context, pool *pgxpool.Pool) error {
 		if r.Status == "closed" && r.Kind != "praise" {
 			actual = 48000
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO appeals(id,title,description,kind,category,department,priority,status,author_id,assignee_id,affected,expected_effect,actual_effect,result,due_at,created_at,updated_at,confirmed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'employee','executor',$9,$10,$11,$12,$13,$14,$15,CASE WHEN $8='closed' AND $5<>'praise' THEN $15::timestamptz ELSE NULL END)`, id, r.Title, r.Description, r.Kind, r.Category, r.Department, r.Priority, r.Status, 1+i%8, (i%5)*25000, actual, result, due, created, created.Add(24*time.Hour))
+		_, err = tx.Exec(ctx, `INSERT INTO appeals(id,title,description,kind,category,department,priority,status,author_id,assignee_id,affected,expected_effect,actual_effect,result,due_at,created_at,updated_at,confirmed_at,response_due_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'employee','executor',$9,$10,$11,$12,$13,$14,$15,CASE WHEN $8='closed' AND $4<>'praise' THEN $15::timestamptz ELSE NULL END,$14::timestamptz+interval '18 hours')`, id, r.Title, r.Description, r.Kind, r.Category, r.Department, r.Priority, r.Status, 1+i%8, (i%5)*25000, actual, result, due, created, created.Add(24*time.Hour))
 		if err != nil {
 			return err
 		}

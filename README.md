@@ -70,6 +70,20 @@ executor@dauys.local, admin@dauys.local; пароль `DauysDemo2026!`.
 
 ## Проверки
 
+На подготовленном Windows-компьютере полный автоматический прогон:
+
+```powershell
+npm run verify:local
+```
+
+Команда собирает приложение, создаёт отдельную копию PostgreSQL, проверяет API и
+браузерный цикл сотрудника/исполнителя, вложение и мобильный QR. Рабочие обращения
+не изменяются. Итог: `data/verification-latest.json`; логи и снимок БД — в
+`data/verification/<дата>/`, screenshots — в `output/playwright/<дата>/`.
+При успехе собственная тестовая БД удаляется; при ошибке сохраняется для диагностики.
+Требуются подготовленные Go/PostgreSQL и Chromium Playwright. Без браузера можно
+запустить `./scripts/verify-local.ps1 -SkipBrowser` — отчёт явно отмечает этот пропуск.
+
 ```powershell
 npm run check
 npm test

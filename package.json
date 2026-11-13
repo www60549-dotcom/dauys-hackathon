@@ -7,6 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 5175 --strictPort",
     "check": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
+    "verify:local": "powershell -NoProfile -File scripts/verify-local.ps1",
     "bench:swarm": "node scripts/benchmark-swarm.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 5175 --strictPort"
